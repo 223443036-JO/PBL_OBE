@@ -54,17 +54,31 @@ export default function NilaiForm({ rps, cpmks, bobot, mahasiswas, nilaiExisting
 
     const [saving, setSaving] = useState(false);
 
+    // FIX: preview sebelumnya selalu bagi 100, padahal backend
+    // (AsesmenService::hitungNilaiCpmk) sekarang bagi dengan TOTAL
+    // BOBOT AKTUAL per CPMK, bukan 100. Kalau dosen input bobot
+    // yang totalnya bukan 100 (mis. 5+5+10=20 ala Excel), preview
+    // di layar bakal beda jauh dari nilai final setelah disimpan.
+    // Disamakan di sini supaya dosen lihat angka yang konsisten.
     const hitungPreview = (mhsId: number, cpmkId: number) => {
         const n = nilai[mhsId]?.[cpmkId];
         const b = bobot[cpmkId];
         if (!n || !b) return 0;
-        return Math.round((
-            n.quiz    * b.bobot_quiz    +
-            n.tugas   * b.bobot_tugas   +
-            n.project * b.bobot_project +
-            n.uts     * b.bobot_uts     +
-            n.uas     * b.bobot_uas
-        ) / 100 * 100) / 100;
+
+        const totalBobot =
+            Number(b.bobot_quiz) + Number(b.bobot_tugas) + Number(b.bobot_project) +
+            Number(b.bobot_uts) + Number(b.bobot_uas);
+
+        if (totalBobot <= 0) return 0;
+
+        const nilaiWeighted =
+            n.quiz    * Number(b.bobot_quiz)    +
+            n.tugas   * Number(b.bobot_tugas)   +
+            n.project * Number(b.bobot_project) +
+            n.uts     * Number(b.bobot_uts)     +
+            n.uas     * Number(b.bobot_uas);
+
+        return Math.round((nilaiWeighted / totalBobot) * 100) / 100;
     };
 
     const handleChange = (mhsId: number, cpmkId: number, komponen: string, val: string) => {

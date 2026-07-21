@@ -36,36 +36,53 @@ Route::middleware([
 
     Route::middleware(['auth', 'role:Kaprodi|Dosen'])->group(function () {
         Route::resource('rps', RpsController::class)->except(['show']);
+        Route::get('/mata-kuliah/{id}/rps-data', [MataKuliahController::class, 'apiGetRpsData'])->name('mata-kuliah.rps-data');
         Route::get('/rps/{id}/pdf', [RpsController::class, 'printPdf'])->name('rps.pdf');
         Route::get('/rps/{id}/download', [RpsController::class, 'downloadPdf'])->name('rps.download');
         Route::get('/matrix', [MatrixController::class, 'index'])->name('matrix.index');
 
-        // Input nilai
         Route::get('/asesmen/nilai', [AsesmenController::class, 'nilaiIndex'])->name('asesmen.nilai');
         Route::get('/asesmen/nilai/form', [AsesmenController::class, 'nilaiForm'])->name('asesmen.nilai.form');
         Route::post('/asesmen/nilai', [AsesmenController::class, 'nilaiStore'])->name('asesmen.nilai.store');
-        
-        Route::resource('biodata-dosen', DosenBiodataController::class)
-            ->parameters(['biodata-dosen' => 'dosenBiodata'])
-            ->only(['index']);
 
-        // Dashboard grafik
         Route::get('/asesmen', [AsesmenController::class, 'index'])->name('asesmen.index');
         Route::get('/asesmen/mhs/{id}', [AsesmenController::class, 'show'])->name('asesmen.show');
         Route::get('/asesmen/rerata', [AsesmenController::class, 'rerata'])->name('asesmen.rerata');
 
-        // Dosen kelola profil/biodata sendiri
+        // FIX: CPMK dipindah kesini dari grup role:Kaprodi -- dosen pengampu
+        // sekarang perlu bisa input/edit CPMK matkul yang dia ampu sendiri.
+        // Kaprodi tetap bisa akses SEMUA matkul; dosen dibatasi hanya matkul
+        // yang dia ampu (dicek di dalam CpmkController, bukan cuma di sini,
+        // karena middleware role ini cuma cek "apakah dia Dosen", bukan
+        // "matkul yang mana yang boleh dia pegang").
+        Route::prefix('cpmk')->group(function () {
+            Route::get('/mk/{mata_kuliah_id}', [CpmkController::class, 'index'])->name('cpmk.index');
+            Route::post('/', [CpmkController::class, 'store'])->name('cpmk.store');
+            Route::put('/{cpmk}', [CpmkController::class, 'update'])->name('cpmk.update');
+            Route::patch('/{cpmk}', [CpmkController::class, 'update']);
+            Route::delete('/{cpmk}', [CpmkController::class, 'destroy'])->name('cpmk.destroy');
+        });
+
+        // Dosen hanya bisa kelola profil diri sendiri
         Route::get('/biodata-saya', [DosenBiodataController::class, 'showSelf'])->name('biodata-saya.show');
         Route::patch('/biodata-saya', [DosenBiodataController::class, 'updateSelf'])->name('biodata-saya.update');
     });
 
     Route::middleware(['auth', 'role:Kaprodi'])->group(function () {
         Route::resource('mata-kuliah', MataKuliahController::class)->except(['create', 'show', 'edit']);
-        Route::get('/mata-kuliah/{id}/rps-data', [MataKuliahController::class, 'apiGetRpsData'])->name('mata-kuliah.rps-data');
 
+        // FIX (fitur baru): route verifikasi RPS sudah ada logic-nya di
+        // RpsController dari lama, tapi belum pernah didaftarkan rute-nya
+        // sama sekali -- makanya fitur approve Kaprodi belum pernah bisa
+        // dipakai dari UI. Sengaja ditaruh di grup role:Kaprodi (bukan
+        // Kaprodi|Dosen) karena cuma Kaprodi yang boleh verifikasi.
+        Route::patch('/rps/{id}/verifikasi', [RpsController::class, 'verifikasi'])->name('rps.verifikasi');
+        Route::patch('/rps/{id}/batal-verifikasi', [RpsController::class, 'batalVerifikasi'])->name('rps.batal-verifikasi');
+
+        // index dipindah ke sini — hanya Kaprodi yang bisa lihat semua biodata dosen
         Route::resource('biodata-dosen', DosenBiodataController::class)
             ->parameters(['biodata-dosen' => 'dosenBiodata'])
-            ->only([ 'store', 'update', 'destroy']);
+            ->only(['index', 'store', 'update', 'destroy']);
 
         Route::get('/mata-kuliah/{id}/dosen-pengampu', [MataKuliahController::class, 'dosenPengampu'])->name('mata-kuliah.dosen-pengampu');
         Route::post('/mata-kuliah/{id}/dosen-pengampu', [MataKuliahController::class, 'attachDosen'])->name('mata-kuliah.attach-dosen');
@@ -74,6 +91,7 @@ Route::middleware([
         Route::get('/dosen', [DosenController::class, 'index'])->name('dosen.index');
         Route::get('/dosen/create', [DosenController::class, 'create'])->name('dosen.create');
         Route::post('/dosen', [DosenController::class, 'store'])->name('dosen.store');
+        Route::put('/dosen/{user}', [DosenController::class, 'update'])->name('dosen.update');
 
         Route::resource('indikator-kinerja', IndikatorKinerjaController::class)->except(['create', 'show', 'edit']);
 
@@ -97,26 +115,12 @@ Route::middleware([
         Route::post('/matrix/sync-ppm-iea', [MatrixController::class, 'syncPpmIea'])->name('matrix.sync-ppm-iea');
         Route::post('/matrix/sync-mk-cpl', [MatrixController::class, 'syncMkCpl'])->name('matrix.sync-mk-cpl');
 
-        Route::prefix('cpmk')->group(function () {
-            Route::get('/mk/{mata_kuliah_id}', [CpmkController::class, 'index'])->name('cpmk.index');
-            Route::post('/', [CpmkController::class, 'store'])->name('cpmk.store');
-            Route::put('/{cpmk}', [CpmkController::class, 'update'])->name('cpmk.update');
-            Route::patch('/{cpmk}', [CpmkController::class, 'update']);
-            Route::delete('/{cpmk}', [CpmkController::class, 'destroy'])->name('cpmk.destroy');
-        });
-
-        // ── ASESMEN CPL ──────────────────────────────────────────────
-        // Kelas
         Route::get('/asesmen/kelas', [AsesmenController::class, 'kelasIndex'])->name('asesmen.kelas');
         Route::post('/asesmen/kelas', [AsesmenController::class, 'kelasStore'])->name('asesmen.kelas.store');
         Route::delete('/asesmen/kelas/{id}', [AsesmenController::class, 'kelasDestroy'])->name('asesmen.kelas.destroy');
 
-        // Mahasiswa
         Route::get('/asesmen/mahasiswa', [AsesmenController::class, 'mahasiswaIndex'])->name('asesmen.mahasiswa');
         Route::post('/asesmen/mahasiswa', [AsesmenController::class, 'mahasiswaStore'])->name('asesmen.mahasiswa.store');
         Route::delete('/asesmen/mahasiswa/{id}', [AsesmenController::class, 'mahasiswaDestroy'])->name('asesmen.mahasiswa.destroy');
-
-        
-
     });
 });

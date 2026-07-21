@@ -2,27 +2,25 @@
 
 namespace App\Models;
 
+use Stancl\Tenancy\Database\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class IndikatorKinerja extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
-    // Pastikan nama tabel benar jika Laravel tidak mendeteksinya secara otomatis
     protected $table = 'indikator_kinerjas';
 
-    protected $fillable = [
-        'cpl_id', 
-        'kode', 
-        'deskripsi'
-    ];
+    protected $fillable = ['cpl_id', 'kode', 'deskripsi'];
 
-    /**
-     * Relasi Balik ke CPL (Setiap IK hanya memiliki 1 CPL)
-     */
     public function cpl()
     {
-        return $this->belongsTo(Cpl::class, 'cpl_id');
+        return $this->belongsTo(Cpl::class);
+    }
+
+    public function cpmks()
+    {
+        return $this->belongsToMany(Cpmk::class, 'cpmk_indikator_kinerja');
     }
 }

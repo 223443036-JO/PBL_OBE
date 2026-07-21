@@ -24,7 +24,6 @@ class DashboardController extends Controller
             return $this->dosenDashboard($user);
         }
 
-        // Fallback: role tidak dikenali
         return Inertia::render('Dashboard', [
             'dashboardRole' => 'default',
             'stats'         => [],
@@ -34,19 +33,24 @@ class DashboardController extends Controller
         ]);
     }
 
-    // ─── Dashboard Kaprodi ──────────────────────────────────────────
-
     private function kaprodiDashboard($user)
     {
+        $tenantId = tenant('id');
+
         $totalMk    = MataKuliah::count();
         $totalCpl   = Cpl::count();
         $totalCpmk  = Cpmk::count();
         $totalRps   = Rps::count();
-        $totalDosen = DB::table('dosen_biodatas')->count();
+
+        // Raw query wajib tambah filter tenant_id manual
+        $totalDosen = DB::table('dosen_biodatas')
+            ->where('tenant_id', $tenantId)
+            ->count();
 
         $mkWithCpl   = MataKuliah::has('cpls')->count();
         $mkWithRps   = MataKuliah::has('rps')->count();
-        $mkWithDosen = \DB::table('dosen_biodata_mata_kuliah')
+        $mkWithDosen = DB::table('dosen_biodata_mata_kuliah')
+            ->where('tenant_id', $tenantId)
             ->distinct('mata_kuliah_id')
             ->count('mata_kuliah_id');
 
@@ -54,23 +58,23 @@ class DashboardController extends Controller
         $rpsCoverage   = $totalMk > 0 ? round(($mkWithRps / $totalMk) * 100) : 0;
         $dosenCoverage = $totalMk > 0 ? round(($mkWithDosen / $totalMk) * 100) : 0;
 
-        // Tabel ringkasan mata kuliah
         $mataKuliahs = MataKuliah::withCount(['cpls', 'cpmks', 'rps'])
             ->orderBy('semester')
             ->orderBy('kode_mk')
             ->get()
-            ->map(function ($mk) {
+            ->map(function ($mk) use ($tenantId) {
                 $dosenIds = DB::table('dosen_biodata_mata_kuliah')
                     ->where('mata_kuliah_id', $mk->id)
+                    ->where('tenant_id', $tenantId)
                     ->pluck('dosen_biodata_id');
-                
+
                 $dosenPengampusCount = $dosenIds->count();
                 $dosenPengampusNames = [];
-                
+
                 if ($dosenIds->isNotEmpty()) {
                     $dosens = DosenBiodata::whereIn('id', $dosenIds)
                         ->get(['id', 'nama_lengkap', 'gelar_depan', 'gelar_belakang']);
-                    
+
                     $dosenPengampusNames = $dosens->map(fn ($d) => [
                         'id'   => $d->id,
                         'nama' => trim(implode(' ', array_filter([
@@ -80,17 +84,17 @@ class DashboardController extends Controller
                 }
 
                 return [
-                    'id'                   => $mk->id,
-                    'kode_mk'              => $mk->kode_mk,
-                    'nama_mk'              => $mk->nama_mk,
-                    'sks'                  => $mk->sks,
-                    'semester'             => $mk->semester ?? '-',
-                    'jenis'                => $mk->jenis,
-                    'cpls_count'           => $mk->cpls_count,
-                    'cpmks_count'          => $mk->cpmks_count,
+                    'id'                    => $mk->id,
+                    'kode_mk'               => $mk->kode_mk,
+                    'nama_mk'               => $mk->nama_mk,
+                    'sks'                   => $mk->sks,
+                    'semester'              => $mk->semester ?? '-',
+                    'jenis'                 => $mk->jenis,
+                    'cpls_count'            => $mk->cpls_count,
+                    'cpmks_count'           => $mk->cpmks_count,
                     'dosen_pengampus_count' => $dosenPengampusCount,
-                    'rps_count'            => $mk->rps_count,
-                    'dosen_pengampus'      => $dosenPengampusNames,
+                    'rps_count'             => $mk->rps_count,
+                    'dosen_pengampus'       => $dosenPengampusNames,
                 ];
             });
 
@@ -108,36 +112,34 @@ class DashboardController extends Controller
                 'rps'              => $rpsCoverage,
                 'dosen_assignment' => $dosenCoverage,
             ],
-            'items' => $mataKuliahs,
+            'items'    => $mataKuliahs,
             'shortcuts' => [
-                ['label' => 'Kelola CPL',              'href' => route('cpl.index'),              'description' => 'Capaian Pembelajaran Lulusan'],
-                ['label' => 'Kelola PPM',              'href' => route('ppm.index'),              'description' => 'Profil Profesional Mandiri'],
-                ['label' => 'Kelola IEA',              'href' => route('iea.index'),              'description' => 'IEA Graduate Attributes'],
-                ['label' => 'Indikator Kinerja',       'href' => route('indikator-kinerja.index'), 'description' => 'Indikator pencapaian CPL'],
-                ['label' => 'Curriculum Map',           'href' => route('matrix.index'),           'description' => 'Matriks CPL-MK-IEA-PPM'],
-                ['label' => 'Kelola RPS',              'href' => route('rps.index'),              'description' => 'Rencana Pembelajaran Semester'],
-                ['label' => 'Biodata Dosen',           'href' => route('biodata-dosen.index'),     'description' => 'Data lengkap dosen'],
-                ['label' => 'Akun Dosen',              'href' => route('dosen.index'),            'description' => 'Manajemen akun dosen'],
+                ['label' => 'Kelola CPL',        'href' => route('cpl.index'),               'description' => 'Capaian Pembelajaran Lulusan'],
+                ['label' => 'Kelola PPM',        'href' => route('ppm.index'),               'description' => 'Profil Profesional Mandiri'],
+                ['label' => 'Kelola IEA',        'href' => route('iea.index'),               'description' => 'IEA Graduate Attributes'],
+                ['label' => 'Indikator Kinerja', 'href' => route('indikator-kinerja.index'), 'description' => 'Indikator pencapaian CPL'],
+                ['label' => 'Curriculum Map',    'href' => route('matrix.index'),            'description' => 'Matriks CPL-MK-IEA-PPM'],
+                ['label' => 'Kelola RPS',        'href' => route('rps.index'),               'description' => 'Rencana Pembelajaran Semester'],
+                ['label' => 'Biodata Dosen',     'href' => route('biodata-dosen.index'),     'description' => 'Data lengkap dosen'],
+                ['label' => 'Akun Dosen',        'href' => route('dosen.index'),             'description' => 'Manajemen akun dosen'],
             ],
         ]);
     }
 
-    // ─── Dashboard Dosen ────────────────────────────────────────────
-
     private function dosenDashboard($user)
     {
+        $tenantId     = tenant('id');
         $dosenBiodata = $user->dosenBiodata;
 
-        // Jika dosen belum terhubung ke biodata
         if (!$dosenBiodata) {
             return Inertia::render('Dashboard', [
                 'dashboardRole' => 'dosen',
                 'warning'       => 'Akun Anda belum terhubung dengan biodata dosen. Hubungi Kaprodi untuk menghubungkan akun Anda.',
                 'stats'         => [
-                    'mk_diampu'          => 0,
-                    'rps_saya'           => 0,
-                    'cpmk_terkait'       => 0,
-                    'rps_perlu_lengkap'  => 0,
+                    'mk_diampu'         => 0,
+                    'rps_saya'          => 0,
+                    'cpmk_terkait'      => 0,
+                    'rps_perlu_lengkap' => 0,
                 ],
                 'coverage'  => [],
                 'items'     => [],
@@ -150,9 +152,10 @@ class DashboardController extends Controller
 
         $dosenId = $dosenBiodata->id;
 
-        // MK yang di-assign ke dosen ini
+        // Raw query wajib filter tenant_id manual
         $assignedMkIds = DB::table('dosen_biodata_mata_kuliah')
             ->where('dosen_biodata_id', $dosenId)
+            ->where('tenant_id', $tenantId)
             ->pluck('mata_kuliah_id');
 
         $totalMkDiampu = $assignedMkIds->count();
@@ -166,7 +169,6 @@ class DashboardController extends Controller
             })
             ->count();
 
-        // Tabel: MK yang diampu beserta status RPS-nya
         $mataKuliahs = MataKuliah::whereIn('id', $assignedMkIds)
             ->withCount(['cpls', 'cpmks'])
             ->orderBy('semester')
@@ -180,13 +182,12 @@ class DashboardController extends Controller
 
                 $status = 'Belum Ada';
                 if ($rps) {
-                    $isComplete = $rps->details_count > 0
-                        && $rps->penilaians_count > 0;
-                    $status = $isComplete ? 'Lengkap' : 'Perlu Dilengkapi';
+                    $isComplete = $rps->details_count > 0 && $rps->penilaians_count > 0;
+                    $status     = $isComplete ? 'Lengkap' : 'Perlu Dilengkapi';
                 }
 
                 return [
-                    'id'           => $mk->id,
+                    'id'          => $mk->id,
                     'kode_mk'     => $mk->kode_mk,
                     'nama_mk'     => $mk->nama_mk,
                     'sks'         => $mk->sks,
@@ -207,8 +208,8 @@ class DashboardController extends Controller
                 'cpmk_terkait'      => $totalCpmk,
                 'rps_perlu_lengkap' => $rpsPerluLengkap,
             ],
-            'coverage' => [],
-            'items'    => $mataKuliahs,
+            'coverage'  => [],
+            'items'     => $mataKuliahs,
             'shortcuts' => [
                 ['label' => 'Kelola RPS',     'href' => route('rps.index'),    'description' => 'Rencana Pembelajaran Semester'],
                 ['label' => 'Curriculum Map', 'href' => route('matrix.index'), 'description' => 'Matriks CPL-MK-IEA-PPM'],

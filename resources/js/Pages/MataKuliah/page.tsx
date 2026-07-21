@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Head, useForm, router, Link, usePage } from '@inertiajs/react';
+import { Head, useForm, router, Link, usePage, useRemember } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Dialog } from '@headlessui/react';
+
+interface PrasyaratItem { id: number; kode_mk: string; nama_mk: string; }
 
 interface MataKuliah {
     id: number;
@@ -13,8 +15,9 @@ interface MataKuliah {
     semester: string | null;
     sifat_pengambilan: string | null;
     cara_pembelajaran: string | null;
-    prasyarat_id: number | null;
-    prasyarat?: { kode_mk: string; nama_mk: string } | null;
+    // FIX: dulu prasyarat_id (single) + prasyarat (object tunggal),
+    // sekarang prasyarats (array), sesuai relasi many-to-many baru
+    prasyarats?: PrasyaratItem[];
 }
 
 export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuliah[] }) {
@@ -24,8 +27,11 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [selectedId, setSelectedId] = useState<number | null>(null);
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
+    const [search, setSearch] = useRemember('', 'mataKuliah.search');
+    const [page, setPage] = useRemember(1, 'mataKuliah.page');
+    // FIX: state kecil untuk search box di dalam dropdown prasyarat,
+    // supaya gampang cari MK tertentu tanpa scroll manual satu-satu
+    const [prasyaratSearch, setPrasyaratSearch] = useState('');
     const PER_PAGE = 10;
 
     const filtered = mataKuliahs.filter((mk) =>
@@ -46,13 +52,15 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
         sifat_pengambilan: 'Wajib',
         cara_pembelajaran: 'Tatap Muka',
         deskripsi: '',
-        prasyarat_id: '' as string | number | null,
+        // FIX: dulu prasyarat_id tunggal, sekarang array prasyarat_ids
+        prasyarat_ids: [] as number[],
     });
 
     const openAddModal = () => {
         setModalMode('add');
-        reset(); 
+        reset();
         clearErrors();
+        setPrasyaratSearch('');
         setData({
             kode_mk: '',
             nama_mk: '',
@@ -62,7 +70,7 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
             sifat_pengambilan: 'Wajib',
             cara_pembelajaran: 'Tatap Muka',
             deskripsi: '',
-            prasyarat_id: '',
+            prasyarat_ids: [],
         });
         setIsModalOpen(true);
     };
@@ -70,6 +78,7 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
     const openEditModal = (mk: MataKuliah) => {
         setModalMode('edit');
         setSelectedId(mk.id);
+        setPrasyaratSearch('');
         setData({
             kode_mk: mk.kode_mk,
             nama_mk: mk.nama_mk,
@@ -79,7 +88,8 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
             sifat_pengambilan: mk.sifat_pengambilan || 'Wajib',
             cara_pembelajaran: mk.cara_pembelajaran || 'Tatap Muka',
             deskripsi: mk.deskripsi || '',
-            prasyarat_id: mk.prasyarat_id || '',
+            // FIX: ambil semua id prasyarat yang sudah ada, bukan cuma satu
+            prasyarat_ids: (mk.prasyarats || []).map((p) => p.id),
         });
         clearErrors();
         setIsModalOpen(true);
@@ -90,6 +100,23 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
         if (modalMode === 'add') post('/mata-kuliah', { onSuccess: () => setIsModalOpen(false) });
         else patch(`/mata-kuliah/${selectedId}`, { onSuccess: () => setIsModalOpen(false) });
     };
+
+    // FIX: toggle checkbox prasyarat, tambah kalau belum ada, hapus kalau sudah ada
+    const togglePrasyarat = (id: number) => {
+        if (data.prasyarat_ids.includes(id)) {
+            setData('prasyarat_ids', data.prasyarat_ids.filter((p) => p !== id));
+        } else {
+            setData('prasyarat_ids', [...data.prasyarat_ids, id]);
+        }
+    };
+
+    // Daftar MK yang boleh dipilih sebagai prasyarat: bukan dirinya sendiri,
+    // dan sesuai kata kunci pencarian di dalam dropdown
+    const prasyaratOptions = mataKuliahs.filter((mkOption) =>
+        mkOption.id !== selectedId &&
+        (mkOption.nama_mk.toLowerCase().includes(prasyaratSearch.toLowerCase()) ||
+         mkOption.kode_mk.toLowerCase().includes(prasyaratSearch.toLowerCase()))
+    );
 
     return (
         <AuthenticatedLayout>
@@ -142,8 +169,12 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
                                     <td className="px-6 py-4 font-medium text-gray-800">
                                         {mk.nama_mk}
                                         <div className="text-xs text-gray-500 mt-1">{mk.jenis} • {mk.cara_pembelajaran}</div>
-                                        {mk.prasyarat && (
-                                            <div className="text-xs text-red-500 mt-1 font-bold">Prasyarat: {mk.prasyarat.nama_mk}</div>
+                                        {/* FIX: tampilkan SEMUA prasyarat, bukan cuma satu.
+                                            Kalau lebih dari satu, digabung koma. */}
+                                        {mk.prasyarats && mk.prasyarats.length > 0 && (
+                                            <div className="text-xs text-red-500 mt-1 font-bold">
+                                                Prasyarat: {mk.prasyarats.map((p) => p.nama_mk).join(', ')}
+                                            </div>
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-center font-bold text-gray-600">{mk.semester || '-'}</td>
@@ -155,9 +186,6 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-3">
-                                            <Link href={`/cpmk/mk/${mk.id}`} className="bg-polman-primary hover:bg-polman-secondary text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors">
-                                                Kelola CPMK
-                                            </Link>
                                             {isKaprodi && (
                                                 <Link href={`/mata-kuliah/${mk.id}/dosen-pengampu`} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors">
                                                     Kelola Dosen
@@ -177,7 +205,6 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
                     </tbody>
                 </table>
 
-                {/* Pagination */}
                 {totalPages > 1 && (
                     <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
                         <p className="text-xs text-gray-500 font-bold">Halaman {page} dari {totalPages} ({filtered.length} mata kuliah)</p>
@@ -207,7 +234,7 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
                     <Dialog.Panel className="bg-white p-6 rounded-2xl w-full max-w-2xl shadow-2xl font-body overflow-y-auto max-h-[90vh]">
                         <Dialog.Title className="text-xl font-bold text-gray-900 mb-4">{modalMode === 'add' ? 'Tambah Mata Kuliah' : 'Edit Mata Kuliah'}</Dialog.Title>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Kode MK <span className="text-red-500">*</span></label>
@@ -240,7 +267,7 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Sifat Pengambilan</label>
                                     <select className="w-full border-gray-300 rounded-lg focus:ring-polman-primary text-sm bg-white" value={data.sifat_pengambilan} onChange={e => setData('sifat_pengambilan', e.target.value)}>
@@ -256,24 +283,68 @@ export default function MataKuliahIndex({ mataKuliahs }: { mataKuliahs: MataKuli
                                         <option value="Bauran (Blended)">Bauran (Blended)</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Prasyarat</label>
-                                    <select 
-                                        className="w-full border-gray-300 rounded-lg focus:ring-polman-primary text-sm bg-white" 
-                                        value={data.prasyarat_id || ''} 
-                                        onChange={e => setData('prasyarat_id', e.target.value === '' ? null : Number(e.target.value))}
-                                    >
-                                        <option value="">- Tidak Ada -</option>
-                                        {mataKuliahs.map((mkOption) => (
-                                            mkOption.id !== selectedId && (
-                                                <option key={mkOption.id} value={mkOption.id}>
-                                                    {mkOption.nama_mk}
-                                                </option>
-                                            )
-                                        ))}
-                                    </select>
-                                    {errors.prasyarat_id && <p className="text-red-500 text-xs mt-1">{errors.prasyarat_id}</p>}
+                            </div>
+
+                            {/* FIX UTAMA: Prasyarat sekarang multi-select via checkbox list
+                                yang bisa dicari, menggantikan <select> tunggal yang lama.
+                                Sesuai kondisi nyata di RPS: satu MK bisa punya banyak prasyarat
+                                sekaligus (contoh: Ekonomi Teknik butuh 3 prasyarat sekaligus). */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">
+                                    Prasyarat
+                                    <span className="text-xs font-normal text-gray-400 ml-2">
+                                        Bisa pilih lebih dari satu
+                                    </span>
+                                </label>
+
+                                {/* Chip prasyarat yang sudah dipilih */}
+                                {data.prasyarat_ids.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {data.prasyarat_ids.map((id) => {
+                                            const mkItem = mataKuliahs.find((m) => m.id === id);
+                                            if (!mkItem) return null;
+                                            return (
+                                                <span key={id} className="inline-flex items-center gap-1 bg-polman-primary/10 text-polman-primary text-xs font-bold px-2.5 py-1 rounded-full border border-polman-primary/20">
+                                                    {mkItem.nama_mk}
+                                                    <button type="button" onClick={() => togglePrasyarat(id)} className="hover:text-red-500 ml-1">
+                                                        ✕
+                                                    </button>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Kotak pencarian + daftar checkbox */}
+                                <div className="border border-gray-300 rounded-lg overflow-hidden">
+                                    <input
+                                        type="text"
+                                        placeholder="Cari mata kuliah prasyarat..."
+                                        value={prasyaratSearch}
+                                        onChange={(e) => setPrasyaratSearch(e.target.value)}
+                                        className="w-full border-0 border-b border-gray-200 text-sm px-3 py-2 focus:ring-0 focus:border-polman-primary"
+                                    />
+                                    <div className="max-h-40 overflow-y-auto">
+                                        {prasyaratOptions.length === 0 ? (
+                                            <p className="text-xs text-gray-400 text-center py-4">Tidak ada mata kuliah yang cocok.</p>
+                                        ) : (
+                                            prasyaratOptions.map((mkOption) => (
+                                                <label key={mkOption.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={data.prasyarat_ids.includes(mkOption.id)}
+                                                        onChange={() => togglePrasyarat(mkOption.id)}
+                                                        className="rounded border-gray-300 text-polman-primary focus:ring-polman-primary"
+                                                    />
+                                                    <span className="text-gray-700">
+                                                        <span className="font-bold text-polman-primary">{mkOption.kode_mk}</span> — {mkOption.nama_mk}
+                                                    </span>
+                                                </label>
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
+                                {errors.prasyarat_ids && <p className="text-red-500 text-xs mt-1">{errors.prasyarat_ids}</p>}
                             </div>
 
                             <div>

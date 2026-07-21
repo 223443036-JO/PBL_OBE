@@ -14,6 +14,8 @@ interface DosenBiodata {
     no_hp: string | null;
     prodi: string;
     jabatan_akademik: string;
+    // FIX: field baru, terpisah dari jabatan_akademik
+    jabatan_struktural: string | null;
     bidang_keahlian: string | null;
     alamat: string | null;
     user?: {
@@ -33,9 +35,18 @@ const initialForm = {
     no_hp: '',
     prodi: 'Teknologi Rekayasa Informatika Industri',
     jabatan_akademik: '',
+    // FIX: default kosong, karena kebanyakan dosen tidak menjabat
+    // posisi struktural apapun
+    jabatan_struktural: '',
     bidang_keahlian: '',
     alamat: '',
 };
+
+// FIX: daftar pilihan jabatan struktural yang umum di lingkungan
+// jurusan/prodi. Dibuat dropdown supaya penulisannya konsisten
+// (menghindari typo seperti "kaprodi" huruf kecil, "Ka Prodi", dst
+// yang bikin pencarian di RpsController tidak ketemu).
+const JABATAN_STRUKTURAL_OPTIONS = ['', 'Kaprodi', 'Kajur', 'Sekretaris Jurusan'];
 
 export default function DosenBiodataPage({ biodatas }: { biodatas: DosenBiodata[] }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -73,6 +84,7 @@ export default function DosenBiodataPage({ biodatas }: { biodatas: DosenBiodata[
             no_hp: biodata.no_hp || '',
             prodi: biodata.prodi,
             jabatan_akademik: biodata.jabatan_akademik,
+            jabatan_struktural: biodata.jabatan_struktural || '',
             bidang_keahlian: biodata.bidang_keahlian || '',
             alamat: biodata.alamat || '',
         });
@@ -159,7 +171,16 @@ export default function DosenBiodataPage({ biodatas }: { biodatas: DosenBiodata[
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-700">{biodata.prodi}</td>
                                     <td className="px-6 py-4 text-sm text-gray-700">
-                                        <div className="font-semibold">{biodata.jabatan_akademik}</div>
+                                        {/* FIX: tampilkan dua jabatan sekaligus kalau ada.
+                                            Contoh: "Lektor · Kaprodi" bukan cuma salah satu doang. */}
+                                        <div className="font-semibold flex items-center gap-1.5 flex-wrap">
+                                            <span>{biodata.jabatan_akademik}</span>
+                                            {biodata.jabatan_struktural && (
+                                                <span className="bg-polman-primary/10 text-polman-primary px-2 py-0.5 rounded-full text-xs font-bold">
+                                                    {biodata.jabatan_struktural}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="text-xs text-gray-500">{biodata.bidang_keahlian || '-'}</div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
@@ -226,6 +247,32 @@ export default function DosenBiodataPage({ biodatas }: { biodatas: DosenBiodata[
                                 </div>
                                 <Field label="Jabatan Akademik" required value={data.jabatan_akademik} error={errors.jabatan_akademik} onChange={(value) => setData('jabatan_akademik', value)} />
                             </div>
+
+                            {/* FIX: field baru untuk jabatan struktural, terpisah dari
+                                jabatan akademik. Pakai dropdown biar penulisannya
+                                konsisten dan gampang dicari sistem (Kaprodi/Kajur). */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">
+                                        Jabatan Struktural
+                                        <span className="text-xs font-normal text-gray-400 ml-1">(opsional)</span>
+                                    </label>
+                                    <select
+                                        className="w-full border-gray-300 rounded-lg text-sm"
+                                        value={data.jabatan_struktural}
+                                        onChange={e => setData('jabatan_struktural', e.target.value)}
+                                    >
+                                        {JABATAN_STRUKTURAL_OPTIONS.map((opt) => (
+                                            <option key={opt} value={opt}>{opt === '' ? '- Tidak Ada -' : opt}</option>
+                                        ))}
+                                    </select>
+                                    {errors.jabatan_struktural && <p className="text-red-500 text-xs mt-1">{errors.jabatan_struktural}</p>}
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        Isi kalau dosen ini sekaligus menjabat posisi struktural, misalnya Kaprodi atau Kajur.
+                                    </p>
+                                </div>
+                            </div>
+
                             <TextArea label="Bidang Keahlian" value={data.bidang_keahlian} onChange={(value) => setData('bidang_keahlian', value)} />
                             <TextArea label="Alamat" value={data.alamat} onChange={(value) => setData('alamat', value)} />
                             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">

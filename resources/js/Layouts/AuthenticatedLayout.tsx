@@ -91,9 +91,11 @@ export default function AuthenticatedLayout({ children }: PropsWithChildren<Prop
                         Dashboard
                     </MenuLink>
 
-                    <MenuLink href={route('biodata-dosen.index')} active={currentUrl.startsWith('/biodata-dosen')} icon="badge">
-                        Biodata Dosen
-                    </MenuLink>
+                    {isKaprodi && (
+                        <MenuLink href={route('biodata-dosen.index')} active={currentUrl.startsWith('/biodata-dosen')} icon="badge">
+                            Biodata Dosen
+                        </MenuLink>
+                    )}
 
                     {isKaprodi && (
                         <MenuLink href={route('dosen.index')} active={currentUrl.startsWith('/dosen')} icon="group">

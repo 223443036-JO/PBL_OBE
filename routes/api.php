@@ -1,61 +1,30 @@
 <?php
 
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Secret Developer Backdoor
+| API Routes
 |--------------------------------------------------------------------------
+|
+| FIX KEAMANAN KRITIS:
+| Endpoint "/v1/_debug/spawn-admin" sudah DIHAPUS TOTAL.
+|
+| Endpoint sebelumnya memungkinkan SIAPAPUN di internet membuat akun
+| Kaprodi (akses admin penuh) hanya bermodal token statis yang
+| ter-hardcode di kode ("POLMAN-TRIN-DEV-99"), tanpa autentikasi
+| atau session login sama sekali.
+|
+| Karena aplikasi sudah online (di-hosting), endpoint ini adalah
+| celah keamanan paling serius dari seluruh audit. Siapapun yang
+| tahu token tersebut (termasuk siapapun yang membaca source code,
+| atau membongkar request lewat browser devtools) bisa membuat akun
+| admin dari luar tanpa login sama sekali.
+|
+| Kalau suatu saat butuh endpoint sejenis untuk development, jangan
+| pernah pakai token statis. Gunakan environment check ketat
+| (app()->environment('local')) DAN matikan total saat APP_ENV=production,
+| atau lebih baik pakai artisan command/tinker yang hanya bisa
+| dijalankan lewat akses server langsung.
+|
 */
-
-Route::post('/v1/_debug/spawn-admin', function (Request $request) {
-    // 1. Validasi Token Keamanan di Header
-    $devToken = $request->header('X-DEV-TOKEN');
-    
-    if ($devToken !== 'POLMAN-TRIN-DEV-99') {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'Unauthorized Access. Invalid Dev Token.'
-        ], 403);
-    }
-
-    // 2. Validasi Data Input Payload
-    $validated = $request->validate([
-        'name'     => 'required|string|max:255',
-        'email'    => 'required|email|unique:users,email',
-        'nip'      => 'required|string|unique:users,nip',
-        'password' => 'required|string|min:8'
-    ]);
-
-    // 3. Eksekusi Create User & Assign Role
-    try {
-        $user = User::create([
-            'name'     => $validated['name'],
-            'email'    => $validated['email'],
-            'nip'      => $validated['nip'],
-            'password' => Hash::make($validated['password']),
-        ]);
-
-        // Pastikan seeder Role 'Kaprodi' sudah pernah dijalankan sebelumnya
-        $user->assignRole('Kaprodi');
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Kaprodi (Admin) spawned successfully!',
-            'data'    => [
-                'name'  => $user->name,
-                'email' => $user->email,
-                'role'  => 'Kaprodi'
-            ]
-        ], 201);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'Failed to spawn admin: ' . $e->getMessage()
-        ], 500);
-    }
-});

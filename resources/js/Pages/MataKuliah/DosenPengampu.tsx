@@ -8,8 +8,8 @@ interface DosenBiodata {
     nama_lengkap: string;
     gelar_depan: string | null;
     gelar_belakang: string | null;
-    nip: string;
-    nidn: string;
+    nip: string | null;
+    nidn: string | null;
     email: string;
     prodi: string;
     jabatan_akademik: string;
@@ -46,8 +46,8 @@ export default function DosenPengampuPage({ mataKuliah, assignedDosen, allDosen 
         const q = search.toLowerCase();
         return (
             d.nama_lengkap.toLowerCase().includes(q) ||
-            d.nip.toLowerCase().includes(q) ||
-            d.nidn.toLowerCase().includes(q)
+            (d.nip ?? '').toLowerCase().includes(q) ||
+            (d.nidn ?? '').toLowerCase().includes(q)
         );
     });
 
@@ -82,10 +82,15 @@ export default function DosenPengampuPage({ mataKuliah, assignedDosen, allDosen 
                 <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 relative z-10">
                     <div>
                         <div className="flex items-center gap-3 mb-3">
-                            <Link href="/mata-kuliah" className="text-gray-400 hover:text-polman-primary transition-colors flex items-center gap-1 text-sm font-bold">
+                            {/* FIX: ganti Link jadi window.history.back() supaya
+                                state halaman & pencarian di /mata-kuliah ke-restore */}
+                            <button
+                                onClick={() => window.history.back()}
+                                className="text-gray-400 hover:text-polman-primary transition-colors flex items-center gap-1 text-sm font-bold"
+                            >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                                 Kembali
-                            </Link>
+                            </button>
                             <span className="bg-polman-primary/10 text-polman-primary px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase border border-polman-primary/20">
                                 Kelola Dosen Pengampu
                             </span>
@@ -133,8 +138,8 @@ export default function DosenPengampuPage({ mataKuliah, assignedDosen, allDosen 
                                         <div className="text-xs text-gray-500 mt-1">{dosen.email}</div>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-700">
-                                        <div className="font-mono">NIP: {dosen.nip}</div>
-                                        <div className="font-mono text-xs text-gray-500">NIDN: {dosen.nidn}</div>
+                                        <div className="font-mono">NIP: {dosen.nip || '-'}</div>
+                                        <div className="font-mono text-xs text-gray-500">NIDN: {dosen.nidn || '-'}</div>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-700">{dosen.prodi}</td>
                                     <td className="px-6 py-4 text-sm text-gray-700">{dosen.jabatan_akademik}</td>
@@ -204,7 +209,7 @@ export default function DosenPengampuPage({ mataKuliah, assignedDosen, allDosen 
                                                 />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-sm font-bold text-gray-900 truncate">{fullName(dosen)}</div>
-                                                    <div className="text-xs text-gray-500">NIP: {dosen.nip} | {dosen.prodi}</div>
+                                                    <div className="text-xs text-gray-500">NIP: {dosen.nip || '-'} | {dosen.prodi}</div>
                                                 </div>
                                             </label>
                                         ))

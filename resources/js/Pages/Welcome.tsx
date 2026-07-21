@@ -63,7 +63,7 @@ function Icon({ name, className = 'text-xl' }: { name: string; className?: strin
 export default function Welcome(_: Props) {
     return (
         <div className="min-h-screen bg-white font-body text-aqua-900 antialiased">
-            <Head title="TRIN Curriculum Portal" />
+            <Head title="Curriculum Portal" />
 
             <nav className="fixed top-0 w-full z-50 bg-white/85 backdrop-blur-xl border-b border-aqua-200/30">
                 <div className="max-w-7xl mx-auto px-6 h-[68px] flex items-center justify-between">
@@ -104,7 +104,7 @@ export default function Welcome(_: Props) {
                         <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-aqua-200/20 border border-aqua-200/60">
                             <span className="pulse-dot w-2 h-2 rounded-full bg-aqua-600 shrink-0" />
                             <span className="text-aqua-700 font-bold text-[11px] tracking-[0.25em] uppercase font-mono">
-                                Sistem Aktif - TRIN POLMAN Bandung
+                                Sistem Aktif - POLMAN Bandung
                             </span>
                         </div>
 
@@ -118,7 +118,7 @@ export default function Welcome(_: Props) {
                         </div>
 
                         <p className="text-aqua-800/60 text-xl max-w-md leading-relaxed font-medium italic border-l-4 border-aqua-300 pl-5">
-                            Portal manajemen kurikulum OBE untuk pemetaan CPL, CPMK, RPS, dan monitoring dokumen akademik Program TRIN.
+                            Portal manajemen kurikulum OBE untuk pemetaan CPL, CPMK, RPS, dan monitoring dokumen akademik seluruh Program Studi.
                         </p>
 
                         <div className="flex items-center gap-7 pt-1 overflow-x-auto pb-2">
@@ -325,7 +325,7 @@ export default function Welcome(_: Props) {
                     <blockquote className="text-2xl font-black text-aqua-900 tracking-tight leading-snug mb-4 font-headline">
                         "Menyatukan peta kurikulum, outcome, dan dokumen pembelajaran dalam satu portal akademik."
                     </blockquote>
-                    <p className="text-aqua-600/60 text-sm font-bold uppercase tracking-widest">TRIN - Politeknik Manufaktur Bandung</p>
+                    <p className="text-aqua-600/60 text-sm font-bold uppercase tracking-widest">Politeknik Manufaktur Bandung</p>
                 </div>
             </section>
 
@@ -361,7 +361,7 @@ export default function Welcome(_: Props) {
                                 <img src="/images/polman-logo.png" alt="Logo" className="h-8 w-8 object-contain" />
                             </div>
                             <div>
-                                <p className="font-black text-aqua-900 text-sm">TRIN POLMAN Bandung</p>
+                                <p className="font-black text-aqua-900 text-sm">POLMAN Bandung</p>
                                 <p className="text-aqua-600/50 text-[10px] font-semibold">Curriculum Management System</p>
                             </div>
                         </div>
@@ -369,9 +369,8 @@ export default function Welcome(_: Props) {
                             <a href="#fitur" className="text-xs text-aqua-600/60 hover:text-aqua-700 font-semibold transition-colors">Fitur</a>
                             <a href="#alur" className="text-xs text-aqua-600/60 hover:text-aqua-700 font-semibold transition-colors">Alur</a>
                             <a href="#role" className="text-xs text-aqua-600/60 hover:text-aqua-700 font-semibold transition-colors">Pengguna</a>
-                            <a href={tenantLoginUrl('TRIN')} className="text-xs text-aqua-600/60 hover:text-aqua-700 font-semibold transition-colors">Masuk</a>
                         </div>
-                        <p className="text-[11px] text-aqua-500/40 font-semibold uppercase tracking-widest">© 2026 - TRIN POLMAN Bandung</p>
+                        <p className="text-[11px] text-aqua-500/40 font-semibold uppercase tracking-widest">© 2026 - POLMAN Bandung</p>
                     </div>
                 </div>
             </footer>

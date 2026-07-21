@@ -11,6 +11,8 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        // Semua route tenant sekarang dimuat langsung sebagai web route biasa
+        // tidak lagi pakai InitializeTenancyByDomain
         then: function () {
             Route::middleware('web')
                 ->group(base_path('routes/tenant.php'));
@@ -22,17 +24,13 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-            $middleware->validateCsrfTokens(except: [
-            'http://trin.localhost:8000/*',
-            'http://tro.localhost:8000/*',
-            'http://trmo.localhost:8000/*',
-            'http://trsa.localhost:8000/*',
-        ]);
+        // CSRF exception sudah tidak perlu per subdomain,
+        // sekarang semua jalan dari satu domain (localhost)
 
-        // Registrasi alias untuk Spatie Permission
+        // Alias middleware Spatie Permission
         $middleware->alias([
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role'               => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })

@@ -293,8 +293,11 @@ export default function AsesmenRerata({ kelas, kelasList, grafikRerataCpl, radar
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {grafikRerataCpl.map(cpl => {
-                                const nonZero = cpl.data.filter(v => v > 0);
-                                const akhir = nonZero.length > 0 ? Math.round(nonZero.reduce((a, b) => a + b, 0) / nonZero.length) : 0;
+                                // FIX: sebelumnya rata-rata dari semester yang ada datanya
+                                // (nonZero.reduce(...)/nonZero.length) -- diganti jadi SUM
+                                // semua semester, konsisten dengan formula Excel acuan
+                                // (T6 = SUM(AD6:AK6)) dan fix yang sama di Show.tsx.
+                                const akhir = Math.round(cpl.data.reduce((a, b) => a + b, 0) * 100) / 100;
                                 return (
                                     <tr key={cpl.label} className="hover:bg-gray-50">
                                         <td className="px-4 py-3">

@@ -13,11 +13,10 @@ class AsesmenController extends Controller
 {
     public function __construct(private AsesmenService $asesmen) {}
 
-    // ── Dashboard pilih kelas & mahasiswa ────────────────────────
     public function index(Request $request)
     {
-        $kelasList = Kelas::orderBy('tingkat')->get();
-        $kelasId   = $request->get('kelas_id');
+        $kelasList  = Kelas::orderBy('tingkat')->get();
+        $kelasId    = $request->get('kelas_id');
         $mahasiswas = collect();
 
         if ($kelasId) {
@@ -25,22 +24,21 @@ class AsesmenController extends Controller
                 ->orderBy('nim')->get();
         }
 
-        return Inertia::render('Asesmen/Index', compact('kelasList','mahasiswas','kelasId'));
+        return Inertia::render('Asesmen/Index', compact('kelasList', 'mahasiswas', 'kelasId'));
     }
 
-    // ── Tampilkan grafik per mahasiswa ───────────────────────────
     public function show(int $mahasiswaId)
     {
         $data = $this->asesmen->getDataGrafik($mahasiswaId);
 
-        $mhsKelas = Mahasiswa::where('kelas_id',
-            DB::table('mahasiswas')->where('id', $mahasiswaId)->value('kelas_id')
-        )->orderBy('nim')->get();
+        // FIX: Mahasiswa model pakai BelongsToTenant, sudah auto-scoped
+        $kelasId  = Mahasiswa::where('id', $mahasiswaId)->value('kelas_id');
+        $mhsKelas = Mahasiswa::where('kelas_id', $kelasId)->orderBy('nim')->get();
 
         return Inertia::render('Asesmen/Show', array_merge($data, ['mhsKelas' => $mhsKelas]));
     }
 
-    // ── Manajemen Kelas ──────────────────────────────────────────
+    // ── Kelas ────────────────────────────────────────────────────
     public function kelasIndex()
     {
         $kelas = Kelas::withCount('mahasiswas')->orderBy('tingkat')->get();
@@ -51,13 +49,12 @@ class AsesmenController extends Controller
     {
         $request->validate([
             'kode_kelas'  => 'required|string|max:10',
-            'tahun_masuk' => 'required|integer|min:2000|max:'.date('Y'),
+            'tahun_masuk' => 'required|integer|min:2000|max:' . date('Y'),
         ]);
 
-        $bulan = (int)date('n');
-        $tahunAkademik = $bulan >= 9 ? (int)date('Y') : (int)date('Y') - 1;
-        $tingkat = $tahunAkademik - (int)$request->tahun_masuk + 1;
-        $tingkat = max(1, min(4, $tingkat));
+        $bulan         = (int) date('n');
+        $tahunAkademik = $bulan >= 9 ? (int) date('Y') : (int) date('Y') - 1;
+        $tingkat       = max(1, min(4, $tahunAkademik - (int) $request->tahun_masuk + 1));
 
         Kelas::create([
             'kode_kelas'  => $request->kode_kelas,
@@ -74,7 +71,7 @@ class AsesmenController extends Controller
         return redirect()->back()->with('success', 'Kelas berhasil dihapus!');
     }
 
-    // ── Manajemen Mahasiswa ──────────────────────────────────────
+    // ── Mahasiswa ────────────────────────────────────────────────
     public function mahasiswaIndex(Request $request)
     {
         $kelas      = Kelas::orderBy('tingkat')->get();
@@ -87,7 +84,7 @@ class AsesmenController extends Controller
                 ->orderBy('nim')->get();
         }
 
-        return Inertia::render('Asesmen/Mahasiswa', compact('kelas','mahasiswas','kelasId'));
+        return Inertia::render('Asesmen/Mahasiswa', compact('kelas', 'mahasiswas', 'kelasId'));
     }
 
     public function mahasiswaStore(Request $request)
@@ -98,7 +95,7 @@ class AsesmenController extends Controller
             'kelas_id' => 'required|exists:kelas,id',
         ]);
 
-        Mahasiswa::create($request->only(['nim','nama','kelas_id']));
+        Mahasiswa::create($request->only(['nim', 'nama', 'kelas_id']));
         return redirect()->back()->with('success', 'Mahasiswa berhasil ditambahkan!');
     }
 
@@ -108,43 +105,73 @@ class AsesmenController extends Controller
         return redirect()->back()->with('success', 'Mahasiswa berhasil dihapus!');
     }
 
-    // ── Input Nilai (dosen) ──────────────────────────────────────
+    // ── Input Nilai ──────────────────────────────────────────────
     public function nilaiIndex()
     {
-        $rpsAll = DB::table('rps')
-            ->join('mata_kuliahs','mata_kuliahs.id','=','rps.mata_kuliah_id')
-            ->select('rps.id','rps.tahun_akademik',
-                     'mata_kuliahs.nama_mk as mk_nama',
-                     'mata_kuliahs.kode_mk as mk_kode',
-                     'mata_kuliahs.semester')
-            ->orderBy('mata_kuliahs.semester')
-            ->get();
+        $tenantId = tenant('id');
+        $user = auth()->user();
+
+        // FIX: tambah filter tenant_id pada raw query
+        $query = DB::table('rps')
+            ->join('mata_kuliahs', 'mata_kuliahs.id', '=', 'rps.mata_kuliah_id')
+            ->where('rps.tenant_id', $tenantId)
+            ->select(
+                'rps.id', 'rps.tahun_akademik',
+                'mata_kuliahs.nama_mk as mk_nama',
+                'mata_kuliahs.kode_mk as mk_kode',
+                'mata_kuliahs.semester'
+            );
+
+        // FIX: Dosen (non-Kaprodi) cuma boleh lihat RPS dari mata kuliah yang dia ampu
+        if (! $user->hasRole('Kaprodi') && $user->dosen_biodata_id) {
+            $mkIds = DB::table('dosen_biodata_mata_kuliah')
+                ->where('dosen_biodata_id', $user->dosen_biodata_id)
+                ->where('tenant_id', $tenantId)
+                ->pluck('mata_kuliah_id');
+
+            $query->whereIn('mata_kuliahs.id', $mkIds);
+        }
+
+        $rpsAll = $query->orderBy('mata_kuliahs.semester')->get();
 
         $kelas = Kelas::orderBy('tingkat')->get();
 
-        return Inertia::render('Asesmen/NilaiIndex', compact('rpsAll','kelas'));
+        return Inertia::render('Asesmen/NilaiIndex', compact('rpsAll', 'kelas'));
     }
 
     public function nilaiForm(Request $request)
     {
+        $tenantId = tenant('id');
+
         $request->validate([
             'rps_id'   => 'required|exists:rps,id',
             'kelas_id' => 'required|exists:kelas,id',
         ]);
 
         $rps = DB::table('rps')
-            ->join('mata_kuliahs','mata_kuliahs.id','=','rps.mata_kuliah_id')
-            ->select('rps.*','mata_kuliahs.nama_mk as mk_nama',
-                     'mata_kuliahs.kode_mk as mk_kode',
-                     'mata_kuliahs.semester','mata_kuliahs.id as mata_kuliah_id')
-            ->where('rps.id', $request->rps_id)->first();
+            ->join('mata_kuliahs', 'mata_kuliahs.id', '=', 'rps.mata_kuliah_id')
+            ->where('rps.id', $request->rps_id)
+            ->where('rps.tenant_id', $tenantId)
+            ->select(
+                'rps.*',
+                'mata_kuliahs.nama_mk as mk_nama',
+                'mata_kuliahs.kode_mk as mk_kode',
+                'mata_kuliahs.semester',
+                'mata_kuliahs.id as mata_kuliah_id'
+            )
+            ->first();
 
+        // FIX: filter tenant pada cpmks dan bobot
         $cpmks = DB::table('cpmks')
-            ->where('mata_kuliah_id', $rps->mata_kuliah_id)->get();
+            ->where('mata_kuliah_id', $rps->mata_kuliah_id)
+            ->where('tenant_id', $tenantId)
+            ->get();
 
         $bobot = DB::table('rps_penilaians')
             ->where('rps_id', $request->rps_id)
-            ->select('cpmk_id', 'quiz as bobot_quiz', 'tugas as bobot_tugas', 'project as bobot_project', 'uts as bobot_uts', 'uas as bobot_uas')
+            ->where('tenant_id', $tenantId)
+            ->select('cpmk_id', 'quiz as bobot_quiz', 'tugas as bobot_tugas',
+                     'project as bobot_project', 'uts as bobot_uts', 'uas as bobot_uas')
             ->get()->keyBy('cpmk_id');
 
         $mahasiswas = Mahasiswa::where('kelas_id', $request->kelas_id)
@@ -152,9 +179,10 @@ class AsesmenController extends Controller
 
         $nilaiExisting = DB::table('nilai_mahasiswas')
             ->where('rps_id', $request->rps_id)
+            ->where('tenant_id', $tenantId)
             ->whereIn('mahasiswa_id', $mahasiswas->pluck('id'))
             ->get()->groupBy('mahasiswa_id')
-            ->map(fn($g) => collect($g));
+            ->map(fn ($g) => collect($g));
 
         foreach ($mahasiswas as $mhs) {
             if (!isset($nilaiExisting[$mhs->id])) {
@@ -165,31 +193,41 @@ class AsesmenController extends Controller
         $kelas = Kelas::find($request->kelas_id);
 
         return Inertia::render('Asesmen/NilaiForm', compact(
-            'rps','cpmks','bobot','mahasiswas','nilaiExisting','kelas'
+            'rps', 'cpmks', 'bobot', 'mahasiswas', 'nilaiExisting', 'kelas'
         ));
     }
 
     public function nilaiStore(Request $request)
     {
+        $tenantId = tenant('id');
+
         $request->validate([
             'rps_id'         => 'required|exists:rps,id',
             'tahun_akademik' => 'required|string',
             'nilai'          => 'required|array',
         ]);
 
-        DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request, $tenantId) {
             foreach ($request->nilai as $mhsId => $cpmkNilai) {
                 foreach ($cpmkNilai as $cpmkId => $komponen) {
+                    // FIX: sertakan tenant_id di data insert
+                    // Tanpa ini AsesmenService tidak bisa menemukan record ini
                     DB::table('nilai_mahasiswas')->updateOrInsert(
-                        ['mahasiswa_id'=>$mhsId,'cpmk_id'=>$cpmkId,'rps_id'=>$request->rps_id],
                         [
-                            'quiz'    => $komponen['quiz']    ?? 0,
-                            'tugas'   => $komponen['tugas']   ?? 0,
-                            'project' => $komponen['project'] ?? 0,
-                            'uts'     => $komponen['uts']      ?? 0,
-                            'uas'     => $komponen['uas']      ?? 0,
+                            'mahasiswa_id' => $mhsId,
+                            'cpmk_id'      => $cpmkId,
+                            'rps_id'       => $request->rps_id,
+                            'tenant_id'    => $tenantId,
+                        ],
+                        [
+                            'quiz'             => $komponen['quiz']    ?? 0,
+                            'tugas'            => $komponen['tugas']   ?? 0,
+                            'project'          => $komponen['project'] ?? 0,
+                            'uts'              => $komponen['uts']     ?? 0,
+                            'uas'              => $komponen['uas']     ?? 0,
                             'nilai_akhir_cpmk' => 0,
-                            'updated_at' => now(), 'created_at' => now(),
+                            'updated_at'       => now(),
+                            'created_at'       => now(),
                         ]
                     );
                 }
@@ -200,29 +238,35 @@ class AsesmenController extends Controller
         return redirect()->back()->with('success', 'Nilai berhasil disimpan dan CPL dihitung!');
     }
 
-    // ── Rerata kelas ─────────────────────────────────────────────
+    // ── Rerata Kelas ─────────────────────────────────────────────
     public function rerata(Request $request)
     {
-        $kelasId = $request->get('kelas_id');
+        $tenantId  = tenant('id');
+        $kelasId   = $request->get('kelas_id');
         $kelasList = Kelas::orderBy('tingkat')->get();
-        if (!$kelasId) return Inertia::render('Asesmen/Rerata', [
-            'kelas' => null,
-            'kelasList' => $kelasList,
-            'grafikRerataCpl' => [],
-            'radarRerataCpl' => [],
-            'grafikRerataIea' => [],
-            'radarRerataIea' => [],
-            'rerataPpm' => [],
-            'ppms' => [],
-        ]);
 
-        $kelas      = Kelas::findOrFail($kelasId);
-        $mhsIds     = Mahasiswa::where('kelas_id', $kelasId)->pluck('id');
-        $totalMhs   = count($mhsIds);
-        $cpls       = DB::table('cpls')->orderBy('kode')->get();
-        $ieas       = DB::table('ieas')->orderBy('kode')->get();
+        if (!$kelasId) {
+            return Inertia::render('Asesmen/Rerata', [
+                'kelas'            => null,
+                'kelasList'        => $kelasList,
+                'grafikRerataCpl'  => [],
+                'radarRerataCpl'   => [],
+                'grafikRerataIea'  => [],
+                'radarRerataIea'   => [],
+                'rerataPpm'        => [],
+                'ppms'             => [],
+            ]);
+        }
 
-        // Grafik CPL per semester
+        $kelas    = Kelas::findOrFail($kelasId);
+        $mhsIds   = Mahasiswa::where('kelas_id', $kelasId)->pluck('id');
+        $totalMhs = count($mhsIds);
+
+        // FIX: semua query raw tambah filter tenant_id
+        $cpls = DB::table('cpls')->where('tenant_id', $tenantId)->orderBy('kode')->get();
+        $ieas = DB::table('ieas')->where('tenant_id', $tenantId)->orderBy('kode')->get();
+
+        // Grafik CPL per semester (bar)
         $grafikRerataCpl = [];
         foreach ($cpls as $cpl) {
             $data = [];
@@ -231,41 +275,31 @@ class AsesmenController extends Controller
                     ->whereIn('mahasiswa_id', $mhsIds)
                     ->where('cpl_id', $cpl->id)
                     ->where('semester', $sem)
+                    ->where('tenant_id', $tenantId)
                     ->sum('nilai');
                 $data[] = $totalMhs > 0 ? round($sum / $totalMhs, 2) : 0;
             }
-            $grafikRerataCpl[] = ['label'=>$cpl->kode,'deskripsi'=>$cpl->deskripsi,'data'=>$data];
+            $grafikRerataCpl[] = ['label' => $cpl->kode, 'deskripsi' => $cpl->deskripsi, 'data' => $data];
         }
 
-        // Radar CPL
+        // Radar CPL: rata-rata kumulatif per mahasiswa lalu dirata-rata kelas
         $radarRerataCpl = [];
         foreach ($cpls as $cpl) {
             $totalNilai = 0;
             foreach ($mhsIds as $mhsId) {
-                $avgMhs = DB::table('capaian_cpls')
+                $totalNilai += DB::table('capaian_cpls')
                     ->where('mahasiswa_id', $mhsId)
                     ->where('cpl_id', $cpl->id)
-                    ->avg('nilai');
-                $totalNilai += $avgMhs ?? 0;
+                    ->where('tenant_id', $tenantId)
+                    ->sum('nilai') ?? 0;
             }
-            $radarRerataCpl[] = ['label'=>$cpl->kode,'nilai'=>$totalMhs > 0 ? round($totalNilai / $totalMhs, 2) : 0];
+            $radarRerataCpl[] = [
+                'label' => $cpl->kode,
+                'nilai' => $totalMhs > 0 ? round($totalNilai / $totalMhs, 2) : 0,
+            ];
         }
 
-        // Radar IEA
-        $radarRerataIea = [];
-        foreach ($ieas as $iea) {
-            $totalNilai = 0;
-            foreach ($mhsIds as $mhsId) {
-                $avgMhs = DB::table('capaian_ieas')
-                    ->where('mahasiswa_id', $mhsId)
-                    ->where('iea_id', $iea->id)
-                    ->avg('nilai');
-                $totalNilai += $avgMhs ?? 0;
-            }
-            $radarRerataIea[] = ['label'=>'('.$iea->kode.') '.$iea->deskripsi,'nilai'=>$totalMhs > 0 ? round($totalNilai / $totalMhs, 2) : 0];
-        }
-
-        // Grafik IEA per semester
+        // Grafik IEA per semester (bar)
         $grafikRerataIea = [];
         foreach ($ieas as $iea) {
             $data = [];
@@ -274,41 +308,66 @@ class AsesmenController extends Controller
                     ->whereIn('mahasiswa_id', $mhsIds)
                     ->where('iea_id', $iea->id)
                     ->where('semester', $sem)
+                    ->where('tenant_id', $tenantId)
                     ->sum('nilai');
                 $data[] = $totalMhs > 0 ? round($sum / $totalMhs, 2) : 0;
             }
-            $grafikRerataIea[] = ['label'=>$iea->kode,'deskripsi'=>$iea->deskripsi,'data'=>$data];
+            $grafikRerataIea[] = ['label' => $iea->kode, 'deskripsi' => $iea->deskripsi, 'data' => $data];
+        }
+
+        // Radar IEA
+        $radarRerataIea = [];
+        foreach ($ieas as $iea) {
+            $totalNilai = 0;
+            foreach ($mhsIds as $mhsId) {
+                $totalNilai += DB::table('capaian_ieas')
+                    ->where('mahasiswa_id', $mhsId)
+                    ->where('iea_id', $iea->id)
+                    ->where('tenant_id', $tenantId)
+                    ->sum('nilai') ?? 0;
+            }
+            $radarRerataIea[] = [
+                'label' => '(' . $iea->kode . ') ' . $iea->deskripsi,
+                'nilai' => $totalMhs > 0 ? round($totalNilai / $totalMhs, 2) : 0,
+            ];
         }
 
         // Rerata PPM
-        $ppms = DB::table('ppms')->orderBy('kode')->get();
+        $ppms      = DB::table('ppms')->where('tenant_id', $tenantId)->orderBy('kode')->get();
         $rerataPpm = [];
         foreach ($ppms as $ppm) {
-            $ieaIds = DB::table('ppm_iea')->where('ppm_id', $ppm->id)->pluck('iea_id');
-            $cplIds = DB::table('cpl_iea')->whereIn('iea_id', $ieaIds)->pluck('cpl_id')->unique();
+            $ieaIds = DB::table('ppm_iea')
+                        ->where('ppm_id', $ppm->id)
+                        ->where('tenant_id', $tenantId)
+                        ->pluck('iea_id');
+            $cplIds = DB::table('cpl_iea')
+                        ->whereIn('iea_id', $ieaIds)
+                        ->where('tenant_id', $tenantId)
+                        ->pluck('cpl_id')->unique();
+
             $nilaiList = [];
             foreach ($cplIds as $cplId) {
                 $totalNilai = 0;
                 foreach ($mhsIds as $mhsId) {
-                    $avgMhs = DB::table('capaian_cpls')
+                    $totalNilai += DB::table('capaian_cpls')
                         ->where('mahasiswa_id', $mhsId)
                         ->where('cpl_id', $cplId)
-                        ->avg('nilai');
-                    $totalNilai += $avgMhs ?? 0;
+                        ->where('tenant_id', $tenantId)
+                        ->sum('nilai') ?? 0;
                 }
                 $nilaiList[] = $totalMhs > 0 ? round($totalNilai / $totalMhs, 2) : 0;
             }
             $rerataPpm[] = [
-                'kode' => $ppm->kode,
+                'kode'      => $ppm->kode,
                 'deskripsi' => $ppm->deskripsi,
-                'nilai' => count($nilaiList) > 0 ? round(array_sum($nilaiList) / count($nilaiList), 2) : 0,
+                'nilai'     => count($nilaiList) > 0 ? round(array_sum($nilaiList) / count($nilaiList), 2) : 0,
             ];
         }
 
         return Inertia::render('Asesmen/Rerata', compact(
-            'kelas','kelasList','cpls','ieas','ppms',
-            'grafikRerataCpl','radarRerataCpl',
-            'grafikRerataIea','radarRerataIea',
+            'kelas', 'kelasList', 'cpls', 'ieas', 'ppms',
+            'grafikRerataCpl', 'radarRerataCpl',
+            'grafikRerataIea', 'radarRerataIea',
             'rerataPpm'
         ));
     }

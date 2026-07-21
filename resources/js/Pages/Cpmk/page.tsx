@@ -14,7 +14,7 @@ interface Cpl {
     id: number;
     kode: string;
     deskripsi: string;
-    indikator_kinerjas?: IndikatorKinerja[]; 
+    indikator_kinerjas?: IndikatorKinerja[];
 }
 
 interface Cpmk {
@@ -30,7 +30,7 @@ interface MataKuliah {
     kode_mk: string;
     nama_mk: string;
     sks: number;
-    cpls?: Cpl[]; 
+    cpls?: Cpl[];
 }
 
 interface Props {
@@ -38,19 +38,30 @@ interface Props {
     existingCpmks: Cpmk[];
 }
 
+// FIX: dulu cuma nangani kode berformat angka ("CPL-08", "CPL-09").
+// Sekarang dibuat lebih fleksibel pakai localeCompare bawaan JavaScript
+// dengan opsi { numeric: true }, yang bisa ngurutin dua-duanya sekaligus:
+// - Kode angka: "CPL-2" tetap di depan "CPL-10" (bukan diurutin per-karakter)
+// - Kode huruf: "CPL-A" di depan "CPL-B" secara alfabetis
+// Jadi kalau suatu saat format kode CPL diganti dari angka ke huruf
+// (atau campur), fungsi ini tetap jalan tanpa perlu diubah lagi.
+const sortByKode = <T extends { kode: string }>(items: T[]): T[] => {
+    return [...items].sort((a, b) =>
+        a.kode.localeCompare(b.kode, undefined, { numeric: true, sensitivity: 'base' })
+    );
+};
+
 export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    
-    // State untuk membedakan Tambah atau Edit
+
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [selectedId, setSelectedId] = useState<number | null>(null);
 
-    // Setup Form State
     const { data, setData, post, patch, reset, processing, errors, clearErrors } = useForm({
         mata_kuliah_id: mataKuliah.id,
         kode_cpmk: '',
         deskripsi: '',
-        indikator_ids: [] as number[], 
+        indikator_ids: [] as number[],
     });
 
     const openAddModal = () => {
@@ -59,7 +70,7 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
         reset();
         setData({
             mata_kuliah_id: mataKuliah.id,
-            kode_cpmk: `CPMK-${nextNumber}`, 
+            kode_cpmk: `CPMK-${nextNumber}`,
             deskripsi: '',
             indikator_ids: [],
         });
@@ -88,13 +99,13 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
     const toggleIndikator = (ikId: number) => {
         const currentIds = [...data.indikator_ids];
         const index = currentIds.indexOf(ikId);
-        
+
         if (index === -1) {
-            currentIds.push(ikId); 
+            currentIds.push(ikId);
         } else {
-            currentIds.splice(index, 1); 
+            currentIds.splice(index, 1);
         }
-        
+
         setData('indikator_ids', currentIds);
     };
 
@@ -113,6 +124,11 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
         }
     };
 
+    // FIX: urutkan CPL berdasarkan nomor kodenya sebelum ditampilkan,
+    // supaya CPL-08 selalu muncul di atas CPL-09, apapun urutan aslinya
+    // di database (yang biasanya cuma ngikutin kapan di-assign ke MK ini)
+    const cplTerurut = mataKuliah.cpls ? sortByKode(mataKuliah.cpls) : [];
+
     return (
         <AuthenticatedLayout>
             <Head title={`Capaian Pembelajaran - ${mataKuliah.kode_mk}`} />
@@ -120,16 +136,19 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
             {/* --- HEADER MATA KULIAH --- */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 font-body relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-polman-primary/5 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
-                
+
                 <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 relative z-10">
                     <div>
                         <div className="flex items-center gap-3 mb-3">
-                            <Link href="/mata-kuliah" className="text-gray-400 hover:text-polman-primary transition-colors flex items-center gap-1 text-sm font-bold">
+                            <button
+                                onClick={() => window.history.back()}
+                                className="text-gray-400 hover:text-polman-primary transition-colors flex items-center gap-1 text-sm font-bold"
+                            >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                                 Kembali
-                            </Link>
+                            </button>
                             <span className="bg-polman-primary/10 text-polman-primary px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase border border-polman-primary/20">
-                                Area Dosen Pengampu
+                                Kelola CPMK
                             </span>
                         </div>
                         <h2 className="font-headline font-bold text-3xl text-gray-900 mb-1">{mataKuliah.nama_mk}</h2>
@@ -138,8 +157,8 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
                             <span className="flex items-center gap-1.5"><svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg> Bobot: <span className="text-gray-800">{mataKuliah.sks} SKS</span></span>
                         </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                         onClick={openAddModal}
                         className="bg-polman-primary hover:bg-polman-secondary text-white font-bold py-3 px-6 rounded-xl text-sm transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                     >
@@ -153,7 +172,7 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
                 <div className="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                     <h3 className="font-bold text-gray-800">Daftar Capaian Pembelajaran Mata Kuliah (CPMK)</h3>
                 </div>
-                
+
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-white">
                         <tr>
@@ -174,7 +193,7 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
                                     <td className="px-6 py-4 text-sm">
                                         <div className="flex flex-wrap gap-2">
                                             {cpmk.indikator_kinerjas && cpmk.indikator_kinerjas.length > 0 ? (
-                                                cpmk.indikator_kinerjas.map(ik => (
+                                                sortByKode(cpmk.indikator_kinerjas).map(ik => (
                                                     <span key={ik.id} className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md text-xs font-bold border border-indigo-100" title={ik.deskripsi}>
                                                         {ik.kode}
                                                     </span>
@@ -202,7 +221,7 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
                 <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm" aria-hidden="true" />
                 <div className="fixed inset-0 flex items-center justify-center p-4">
                     <Dialog.Panel className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl font-body">
-                        
+
                         <div className="p-6 border-b border-gray-100 bg-gray-50/50 sticky top-0 z-10 flex justify-between items-center">
                             <Dialog.Title className="font-headline text-xl font-bold text-gray-900">
                                 {modalMode === 'add' ? 'Rajut CPMK Baru' : 'Perbarui Narasi CPMK'}
@@ -211,9 +230,9 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-                        
+
                         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div className="md:col-span-1">
                                     <label className="block text-sm font-bold text-gray-700 mb-2">Kode <span className="text-red-500">*</span></label>
@@ -245,14 +264,14 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
                                     <label className="block text-sm font-bold text-gray-900">Kaitkan ke Indikator Kinerja</label>
                                     <p className="text-xs text-gray-500 mt-1">Hanya menampilkan indikator dari CPL yang telah diikatkan ke MK ini oleh Kaprodi.</p>
                                 </div>
-                                
+
                                 <div className="space-y-4 border border-gray-200 rounded-xl p-4 bg-gray-50/50">
-                                    {!mataKuliah.cpls || mataKuliah.cpls.length === 0 ? (
+                                    {cplTerurut.length === 0 ? (
                                         <p className="text-sm text-red-500 italic p-4 text-center bg-red-50 rounded-lg">
                                             Mata Kuliah ini belum dibebankan CPL apapun di Matriks Kurikulum.
                                         </p>
                                     ) : (
-                                        mataKuliah.cpls.map(cpl => (
+                                        cplTerurut.map(cpl => (
                                             <div key={cpl.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                                                 <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
                                                     <h4 className="font-bold text-xs text-gray-700 flex items-start gap-2">
@@ -264,7 +283,7 @@ export default function CpmkPage({ mataKuliah, existingCpmks }: Props) {
                                                     {!cpl.indikator_kinerjas || cpl.indikator_kinerjas.length === 0 ? (
                                                         <p className="text-[10px] text-gray-400 italic">CPL ini belum memiliki Indikator Kinerja.</p>
                                                     ) : (
-                                                        cpl.indikator_kinerjas.map(ik => (
+                                                        sortByKode(cpl.indikator_kinerjas).map(ik => (
                                                             <label key={ik.id} className="flex items-start gap-3 cursor-pointer group p-1.5 hover:bg-gray-50 rounded">
                                                                 <div className="flex items-center h-4 mt-0.5">
                                                                     <input

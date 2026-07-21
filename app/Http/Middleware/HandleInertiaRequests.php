@@ -38,8 +38,8 @@ class HandleInertiaRequests extends Middleware
                 'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name') : [],
             ],
             'tenant' => [
-                'id' => tenancy()->initialized ? tenant('id') : null,
-                'kode' => tenancy()->initialized ? strtoupper(tenant('id')) : null,
+                'id'   => tenancy()->initialized ? tenant('id') : null,
+                'kode' => tenancy()->initialized ? strtoupper(tenant('id')) : (request()->getHost() !== 'localhost' ? strtoupper(explode('.', request()->getHost())[0]) : 'PORTAL'),
             ],
             // Opsional: Flash message untuk notifikasi sukses/error
             'flash' => [

@@ -25,8 +25,19 @@ class TenancyServiceProvider extends ServiceProvider
             Events\CreatingTenant::class => [],
             Events\TenantCreated::class => app()->environment('testing') ? [] : [
                 JobPipeline::make([
-                    Jobs\CreateDatabase::class,
-                    Jobs\MigrateDatabase::class,
+                    // FIX: DINONAKTIFKAN karena arsitektur sudah pindah ke
+                    // single database (kurikulum_merged). Sebelumnya job ini
+                    // bikin database FISIK BARU per tenant (kurikulum_trin,
+                    // kurikulum_tro, dst) setiap kali Tenant::create()
+                    // dipanggil — ini balik lagi ke arsitektur lama yang
+                    // sudah ditinggalkan dan bisa bikin TenantSeeder.php
+                    // tanpa sengaja bikin 4 database terpisah lagi.
+                    //
+                    // Isolasi data sekarang ditangani BelongsToTenant trait
+                    // yang filter WHERE tenant_id = ? di satu database yang sama.
+                    //
+                    // Jobs\CreateDatabase::class,
+                    // Jobs\MigrateDatabase::class,
                     // Jobs\SeedDatabase::class,
 
                     // Your own jobs to prepare the tenant.
@@ -43,7 +54,13 @@ class TenancyServiceProvider extends ServiceProvider
             Events\DeletingTenant::class => [],
             Events\TenantDeleted::class => [
                 JobPipeline::make([
-                    Jobs\DeleteDatabase::class,
+                    // FIX: DINONAKTIFKAN juga, alasan sama seperti di atas.
+                    // Job ini coba DROP database fisik yang sebenarnya
+                    // tidak pernah dibuat (karena sekarang single database),
+                    // jadi kalau dibiarkan aktif bisa bikin error saat
+                    // hapus tenant, atau lebih parah lagi malah ngedrop
+                    // database yang salah kalau penamaannya kebetulan cocok.
+                    // Jobs\DeleteDatabase::class,
                 ])->send(function (Events\TenantDeleted $event) {
                     return $event->tenant;
                 })->shouldBeQueued(false), // `false` by default, but you probably want to make this `true` for production.

@@ -16,31 +16,43 @@ class RpsController extends Controller
 {
     public function index()
     {
-        $user = auth()->user();
+        $user    = auth()->user();
         $isDosen = $user->hasRole('Dosen');
 
         $query = Rps::with(['mataKuliah:id,kode_mk,nama_mk', 'penilaians', 'details']);
 
-        // Dosen hanya lihat RPS miliknya sendiri
         if ($isDosen && $user->dosen_biodata_id) {
             $query->where('dosen_biodata_id', $user->dosen_biodata_id);
         }
 
         $rps = $query->get();
-        
+
         $rps->each(function ($item) {
             if ($item->dosen_biodata_id) {
                 $item->dosen_biodata = DosenBiodata::find($item->dosen_biodata_id);
             }
         });
-        
-        $mataKuliahs = MataKuliah::select('id', 'kode_mk', 'nama_mk')->get();
-        $allDosen = DosenBiodata::orderBy('nama_lengkap')->get();
+
+        // FIX: dosen sebelumnya lihat SEMUA matkul di dropdown "Tambah RPS"
+        // (61 matkul se-prodi), bikin susah dicari. Sekarang difilter cuma
+        // matkul yang dia ampu -- pola sama seperti nilaiIndex() di
+        // AsesmenController. Kaprodi tetap lihat semua matkul.
+        $mataKuliahQuery = MataKuliah::select('id', 'kode_mk', 'nama_mk');
+        if ($isDosen && $user->dosen_biodata_id) {
+            $tenantId = tenant('id');
+            $mkIds = DB::table('dosen_biodata_mata_kuliah')
+                ->where('dosen_biodata_id', $user->dosen_biodata_id)
+                ->where('tenant_id', $tenantId)
+                ->pluck('mata_kuliah_id');
+            $mataKuliahQuery->whereIn('id', $mkIds);
+        }
+        $mataKuliahs = $mataKuliahQuery->orderBy('nama_mk')->get();
+        $allDosen    = DosenBiodata::orderBy('nama_lengkap')->get();
 
         return Inertia::render('Rps/page', [
-            'rps' => $rps,
+            'rps'         => $rps,
             'mataKuliahs' => $mataKuliahs,
-            'allDosen' => $allDosen,
+            'allDosen'    => $allDosen,
         ]);
     }
 
@@ -62,23 +74,24 @@ class RpsController extends Controller
                     'tte_kaprodi'        => $request->hasFile('tte_kaprodi') ? $request->file('tte_kaprodi')->store('rps_tte', 'public') : null,
                     'tte_kajur'          => $request->hasFile('tte_kajur') ? $request->file('tte_kajur')->store('rps_tte', 'public') : null,
                     'kode_dokumen'       => $validated['kode_dokumen'],
-                    'komponen_labels'    => json_encode($validated['komponen_labels'] ?? \App\Models\Rps::defaultKomponenLabels()),
+                    'komponen_labels'    => $validated['komponen_labels'] ?? Rps::defaultKomponenLabels(),
+                    // RPS baru selalu mulai dari status menunggu verifikasi Kaprodi
+                    'status'             => 'menunggu_verifikasi',
                 ]);
 
                 $rps->penilaians()->createMany($validated['penilaians']);
                 $rps->details()->createMany($validated['details']);
             });
 
-            return redirect()->route('rps.index')->with('success', 'RPS berhasil ditempa.');
-            
+            return redirect()->route('rps.index')->with('success', 'RPS berhasil ditambahkan dan menunggu verifikasi Kaprodi.');
         } catch (\Exception $e) {
-            return back()->withErrors(['dosen_biodata_id' => 'SISTEM GAGAL MENYIMPAN: ' . $e->getMessage()]);
+            return back()->withErrors(['dosen_biodata_id' => 'Sistem gagal menyimpan: ' . $e->getMessage()]);
         }
     }
 
     public function update(Request $request, $id)
     {
-        $rps = Rps::findOrFail($id);
+        $rps       = Rps::findOrFail($id);
         $validated = $this->validateRps($request, true);
 
         try {
@@ -92,12 +105,13 @@ class RpsController extends Controller
                     'pustaka_pendukung'  => $validated['pustaka_pendukung'] ?? null,
                     'bahan_kajian_utama' => $validated['bahan_kajian_utama'],
                     'kode_dokumen'       => $validated['kode_dokumen'],
-                    'komponen_labels'    => json_encode($validated['komponen_labels'] ?? \App\Models\Rps::defaultKomponenLabels()),
+                    'komponen_labels'    => $validated['komponen_labels'] ?? Rps::defaultKomponenLabels(),
+                    // Kalau Dosen edit RPS yang sudah disetujui, status balik ke
+                    // menunggu verifikasi supaya Kaprodi perlu approve ulang
+                    'status'             => 'menunggu_verifikasi',
                 ];
 
-                // Cek dan ganti masing-masing TTE jika ada file baru
-                $ttes = ['tte_dosen', 'tte_kaprodi', 'tte_kajur'];
-                foreach ($ttes as $tte) {
+                foreach (['tte_dosen', 'tte_kaprodi', 'tte_kajur'] as $tte) {
                     if ($request->hasFile($tte)) {
                         if ($rps->$tte) Storage::disk('public')->delete($rps->$tte);
                         $data[$tte] = $request->file($tte)->store('rps_tte', 'public');
@@ -113,60 +127,78 @@ class RpsController extends Controller
                 $rps->details()->createMany($validated['details']);
             });
 
-            return redirect()->route('rps.index')->with('success', 'RPS berhasil diperbarui.');
-            
+            return redirect()->route('rps.index')->with('success', 'RPS berhasil diperbarui dan menunggu verifikasi ulang Kaprodi.');
         } catch (\Exception $e) {
-             return back()->withErrors(['dosen_biodata_id' => 'SISTEM GAGAL UPDATE: ' . $e->getMessage()]);
+            return back()->withErrors(['dosen_biodata_id' => 'Sistem gagal update: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Kaprodi verifikasi/menyetujui RPS yang sudah dibuat Dosen.
+     * Hanya bisa diakses oleh role Kaprodi (dijaga di route middleware).
+     */
+    public function verifikasi($id)
+    {
+        $rps = Rps::findOrFail($id);
+
+        $rps->update(['status' => 'disetujui']);
+
+        return redirect()->back()->with('success', 'RPS berhasil diverifikasi dan disetujui.');
+    }
+
+    /**
+     * Kaprodi batal verifikasi (kembalikan ke menunggu).
+     * Berguna kalau ada revisi setelah sempat disetujui.
+     */
+    public function batalVerifikasi($id)
+    {
+        $rps = Rps::findOrFail($id);
+
+        $rps->update(['status' => 'menunggu_verifikasi']);
+
+        return redirect()->back()->with('success', 'Status RPS dikembalikan ke menunggu verifikasi.');
     }
 
     public function destroy($id)
     {
         $rps = Rps::findOrFail($id);
 
-        // Hapus ketiga file fisiknya
-        $ttes = ['tte_dosen', 'tte_kaprodi', 'tte_kajur'];
-        foreach ($ttes as $tte) {
+        foreach (['tte_dosen', 'tte_kaprodi', 'tte_kajur'] as $tte) {
             if ($rps->$tte) Storage::disk('public')->delete($rps->$tte);
         }
-        
-        $rps->delete(); 
-        
-        return redirect()->back()->with('success', 'RPS berhasil dilenyapkan.');
+
+        $rps->delete();
+
+        return redirect()->back()->with('success', 'RPS berhasil dihapus.');
     }
 
     private function validateRps(Request $request, $isUpdate = false)
     {
-        $tteRule = $isUpdate ? 'nullable' : 'required';
-
         return $request->validate([
-            'mata_kuliah_id'     => 'required|exists:mata_kuliahs,id',
-            // 🔥 FIX: Multi-Tenant Rule
-            'dosen_biodata_id'   => ['nullable', Rule::exists(DosenBiodata::class, 'id')],
-            'tahun_akademik'     => 'required|string|max:20',
-            'tanggal_penyusunan' => 'required|date',
-            'pustaka_utama'      => 'required|string',
-            'pustaka_pendukung'  => 'nullable|string',
-            'bahan_kajian_utama' => 'required|string',
-            'tte_dosen'          => "nullable|file|mimes:png,jpg,jpeg,pdf|max:2048",
-            'tte_kaprodi'        => "nullable|file|mimes:png,jpg,jpeg,pdf|max:2048",
-            'tte_kajur'          => "nullable|file|mimes:png,jpg,jpeg,pdf|max:2048",
-            'kode_dokumen'       => 'required|string',
+            'mata_kuliah_id'           => 'required|exists:mata_kuliahs,id',
+            'dosen_biodata_id'         => ['nullable', Rule::exists(DosenBiodata::class, 'id')],
+            'tahun_akademik'           => 'required|string|max:20',
+            'tanggal_penyusunan'       => 'required|date',
+            'pustaka_utama'            => 'required|string',
+            'pustaka_pendukung'        => 'nullable|string',
+            'bahan_kajian_utama'       => 'required|string',
+            'tte_dosen'                => 'nullable|file|mimes:png,jpg,jpeg,pdf|max:2048',
+            'tte_kaprodi'              => 'nullable|file|mimes:png,jpg,jpeg,pdf|max:2048',
+            'tte_kajur'                => 'nullable|file|mimes:png,jpg,jpeg,pdf|max:2048',
+            'kode_dokumen'             => 'required|string',
             'komponen_labels'          => 'nullable|array',
             'komponen_labels.quiz'     => 'nullable|string|max:50',
             'komponen_labels.tugas'    => 'nullable|string|max:50',
             'komponen_labels.project'  => 'nullable|string|max:50',
             'komponen_labels.uts'      => 'nullable|string|max:50',
             'komponen_labels.uas'      => 'nullable|string|max:50',
-            
-            'penilaians'           => 'required|array',
-            'penilaians.*.cpmk_id' => 'required|exists:cpmks,id',
-            'penilaians.*.quiz'    => 'numeric|min:0|max:100',
-            'penilaians.*.tugas'   => 'numeric|min:0|max:100',
-            'penilaians.*.project' => 'numeric|min:0|max:100',
-            'penilaians.*.uts'     => 'numeric|min:0|max:100',
-            'penilaians.*.uas'     => 'numeric|min:0|max:100',
-
+            'penilaians'               => 'required|array',
+            'penilaians.*.cpmk_id'    => 'required|exists:cpmks,id',
+            'penilaians.*.quiz'        => 'numeric|min:0|max:100',
+            'penilaians.*.tugas'       => 'numeric|min:0|max:100',
+            'penilaians.*.project'     => 'numeric|min:0|max:100',
+            'penilaians.*.uts'         => 'numeric|min:0|max:100',
+            'penilaians.*.uas'         => 'numeric|min:0|max:100',
             'details'                        => 'required|array',
             'details.*.pertemuan_ke'         => 'required|string|max:10',
             'details.*.kemampuan_akhir'      => 'required|string',
@@ -176,90 +208,76 @@ class RpsController extends Controller
             'details.*.estimasi_waktu'       => 'required|string',
             'details.*.pengalaman_belajar'   => 'nullable|string',
             'details.*.penilaian_komponen'   => 'nullable|string',
-            'details.*.penilaian_bobot'      => 'numeric|min:0|max:100',
+            'details.*.penilaian_bobot'      => 'nullable|numeric|min:0|max:100',
         ]);
     }
 
-    // BUKA DI BROWSER (Preview)
-// Contoh pada fungsi cetak atau download PDF di RpsController Anda:
-/**
-     * Fungsi untuk mencetak atau melihat preview PDF RPS
-     */
     public function printPdf($id)
     {
-        // 1. Load data RPS beserta relasi yang diperlukan 
-        // Catatan: 'dosenBiodata' tidak dimasukkan di sini karena di model Rps.php dia adalah Accessor, bukan relasi Eloquent standar.
         $rps = Rps::with([
-            'mataKuliah.cpmks.indikatorKinerjas.cpl', 
-            'penilaians.cpmk', 
+            'mataKuliah.cpmks.indikatorKinerjas.cpl',
+            'penilaians.cpmk',
             'details',
-            'mataKuliah.prasyarat'
+            'mataKuliah.prasyarats',
         ])->findOrFail($id);
 
-        // 2. Load data Dosen Pengampu secara manual untuk menghindari error relasi
         if ($rps->dosen_biodata_id) {
             $rps->dosen_biodata = DosenBiodata::find($rps->dosen_biodata_id);
         }
 
-        // ==========================================
-        // 1. LOGIC NAMA DOSEN PENGAMPU
-        // ==========================================
-        $dosen = $rps->dosen_biodata;
-        $namaDosen = $dosen 
-            ? trim(implode(' ', array_filter([$dosen->gelar_depan, $dosen->nama_lengkap, $dosen->gelar_belakang]))) 
+        $dosen     = $rps->dosen_biodata;
+        $namaDosen = $dosen
+            ? trim(implode(' ', array_filter([$dosen->gelar_depan, $dosen->nama_lengkap, $dosen->gelar_belakang])))
             : '(................................)';
 
-        // ==========================================
-        // 2. LOGIC NAMA KAJUR
-        // Mencari dosen dengan jabatan akademik 'Kajur'
-        // ==========================================
-        $kajur = DosenBiodata::where('jabatan_akademik', 'Kajur')->first();
-        $namaKajur = $kajur 
-            ? trim(implode(' ', array_filter([$kajur->gelar_depan, $kajur->nama_lengkap, $kajur->gelar_belakang]))) 
+        // FIX: Kajur sekarang dicari dari kolom jabatan_struktural,
+        // bukan jabatan_akademik lagi. Ini supaya kolom jabatan_akademik
+        // tetap murni buat pangkat (Lektor, dst), dan posisi struktural
+        // (Kajur/Kaprodi) dicatat terpisah tanpa saling menimpa.
+        $kajur     = DosenBiodata::where('jabatan_struktural', 'Kajur')->first();
+        $namaKajur = $kajur
+            ? trim(implode(' ', array_filter([$kajur->gelar_depan, $kajur->nama_lengkap, $kajur->gelar_belakang])))
             : '(................................)';
 
-        // ==========================================
-        // 3. LOGIC NAMA KAPRODI (DINAMIS)
-        // Alur: Cek prodi_id dosen pengampu -> cari Kaprodi di prodi tersebut
-        // ==========================================
-        $kodeTenant = str_replace('RPS_', '', $rps->kode_dokumen); 
-        
+        $segmenKode    = explode('_', $rps->kode_dokumen);
+        $kodeProdi     = $segmenKode[1] ?? '';
+        $kunciProdiMap = 'RPS_' . $kodeProdi;
+
         $prodiMap = [
             'RPS_TRIN' => 'Teknologi Rekayasa Informatika Industri',
             'RPS_TRO'  => 'Teknologi Rekayasa Otomasi',
             'RPS_TRMO' => 'Teknologi Rekayasa Mekatronika',
             'RPS_TRSA' => 'Teknologi Rekayasa Sistem Aerial Nirawak',
         ];
-        // Dapatkan nama panjang prodi-nya
-        $namaProdiLengkap = $prodiMap[$rps->kode_dokumen] ?? '';
 
-        // Query: Cari di tabel dosen_biodatas di mana kolom 'prodi' cocok dengan RPS ini
-        $kaprodi = DosenBiodata::where('jabatan_akademik', 'Kaprodi')
-            ->where(function ($query) use ($kodeTenant, $namaProdiLengkap) {
-                // Mencari langsung ke kolom 'prodi'
+        $namaProdiLengkap = $prodiMap[$kunciProdiMap] ?? '';
+
+        // FIX: sama seperti Kajur, Kaprodi sekarang dicari dari
+        // jabatan_struktural. Sebelumnya dicari dari jabatan_akademik,
+        // yang bikin dosen yang jabatan akademiknya "Lektor" tapi
+        // menjabat Kaprodi tidak pernah ketemu di pencarian ini.
+        $kaprodi = DosenBiodata::where('jabatan_struktural', 'Kaprodi')
+            ->where(function ($query) use ($kodeProdi, $namaProdiLengkap) {
                 $query->where('prodi', $namaProdiLengkap)
-                      ->orWhere('prodi', $kodeTenant)
-                      ->orWhere('prodi', 'LIKE', '%' . $kodeTenant . '%');
+                      ->orWhere('prodi', $kodeProdi)
+                      ->orWhere('prodi', 'LIKE', '%' . $kodeProdi . '%');
             })->first();
 
-        $namaKaprodi = $kaprodi 
-            ? trim(implode(' ', array_filter([$kaprodi->gelar_depan, $kaprodi->nama_lengkap, $kaprodi->gelar_belakang]))) 
+        $namaKaprodi = $kaprodi
+            ? trim(implode(' ', array_filter([$kaprodi->gelar_depan, $kaprodi->nama_lengkap, $kaprodi->gelar_belakang])))
             : '(................................)';
-        // ==========================================
-        // 4. PENGATURAN DAN RENDER PDF
-        // ==========================================
+
         $pdf = Pdf::loadView('pdf.rps', compact('rps', 'namaDosen', 'namaKajur', 'namaKaprodi'))
-            ->setPaper('a4', 'landscape') // Menggunakan landscape agar tabel mingguan tidak terpotong
+            ->setPaper('a4', 'landscape')
             ->setOptions([
-                'isRemoteEnabled' => true, // WAJIB: Agar grafik QuickChart bisa muncul
+                'isRemoteEnabled'      => true,
                 'isHtml5ParserEnabled' => true,
                 'chroot' => [
                     public_path(),
-                    storage_path('app/public') // WAJIB: Agar DomPDF bisa membaca file TTE di storage
+                    storage_path('app/public'),
                 ],
             ]);
 
-        // Stream untuk preview di browser, atau gunakan download() jika ingin langsung terunduh
         return $pdf->stream('RPS_' . $rps->mataKuliah->kode_mk . '.pdf');
     }
 }

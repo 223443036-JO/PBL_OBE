@@ -35,6 +35,15 @@
             'RPS_TRMO' => 'Teknologi Rekayasa Mekatronika',
             'RPS_TRSA' => 'Teknologi Rekayasa Sistem Aerial Nirawak',
         ];
+
+        // FIX: bug yang sama seperti di RpsController@printPdf.
+        // $rps->kode_dokumen formatnya "RPS_TRO_16AE302" (sudah termasuk
+        // kode MK), sedangkan key di $prodiMap cuma "RPS_TRO" — kalau
+        // di-lookup langsung pakai $rps->kode_dokumen TIDAK PERNAH cocok.
+        // Header "Program Studi ..." di halaman 1 PDF selama ini
+        // kemungkinan selalu nampilin kode mentah, bukan nama lengkap prodi.
+        $segmenKodeDokumen = explode('_', $rps->kode_dokumen);
+        $kunciProdiMap = 'RPS_' . ($segmenKodeDokumen[1] ?? '');
     @endphp
 
     <table>
@@ -45,7 +54,7 @@
             <td width="60%" class="text-center font-bold" style="vertical-align: middle;">
                 Politeknik Manufaktur Bandung<br>
                 Jurusan Teknik Otomasi Manufaktur dan Mekatronika<br>
-                Program Studi {{ $prodiMap[$rps->kode_dokumen] ?? $rps->kode_dokumen }}
+                Program Studi {{ $prodiMap[$kunciProdiMap] ?? $rps->kode_dokumen }}
             </td>
             <td width="20%" class="text-center font-bold" style="vertical-align: middle;">
                 {{ $rps->kode_dokumen }}_{{ $rps->mataKuliah->kode_mk }}
@@ -75,8 +84,8 @@
             <td>{{ \Carbon\Carbon::parse($rps->tanggal_penyusunan)->translatedFormat('d F Y') }}</td>
             <td class="font-bold">MK Prasyarat</td>
             <td>
-                @if($rps->mataKuliah->prasyarat)
-                    {{ $rps->mataKuliah->prasyarat->nama_mk }} ({{ $rps->mataKuliah->prasyarat->kode_mk }})
+                @if($rps->mataKuliah->prasyarats->isNotEmpty())
+                    {{ $rps->mataKuliah->prasyarats->map(fn($mk) => "{$mk->nama_mk} ({$mk->kode_mk})")->implode(', ') }}
                 @else
                     -
                 @endif

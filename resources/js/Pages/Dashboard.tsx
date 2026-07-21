@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage, useRemember } from '@inertiajs/react';
 import { useState } from 'react';
 
 const PER_PAGE = 10;
@@ -145,8 +145,8 @@ function KaprodiDashboard({ stats, coverage, items, shortcuts }: {
     items: KaprodiItem[]; shortcuts: Shortcut[];
 }) {
     const { user } = usePage().props.auth as any;
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
+    const [search, setSearch] = useRemember('', 'dashboard.kaprodi.search');
+    const [page, setPage] = useRemember(1, 'dashboard.kaprodi.page');
 
     const filtered = items.filter((mk) =>
         mk.kode_mk.toLowerCase().includes(search.toLowerCase()) ||
@@ -263,8 +263,8 @@ function DosenDashboard({ stats, items, shortcuts, warning }: {
     stats: Record<string, number>; items: DosenItem[]; shortcuts: Shortcut[]; warning?: string;
 }) {
     const { user } = usePage().props.auth as any;
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
+    const [search, setSearch] = useRemember('', 'dashboard.dosen.search');
+    const [page, setPage] = useRemember(1, 'dashboard.dosen.page');
 
     const filtered = items.filter((mk) =>
         mk.kode_mk.toLowerCase().includes(search.toLowerCase()) ||

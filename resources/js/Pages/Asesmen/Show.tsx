@@ -374,7 +374,13 @@ export default function AsesmenShow({ mahasiswa, grafikCpl, radarCpl, grafikIea,
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {grafikCpl.map(cpl => {
-                                    const nilaiAkhir = Math.max(...cpl.data);
+                                    // FIX: sebelumnya Math.max(...cpl.data) -- cuma ambil nilai
+                                    // tertinggi dari satu semester. Diganti jadi jumlah semua
+                                    // semester, konsisten dengan radarCpl & Rerata CPL di header
+                                    // yang sama-sama pakai akumulasi (sum) lintas semester.
+                                    // Math.round(...*100)/100 buat hindari sisa floating-point
+                                    // seperti 13.669999999999998.
+                                    const nilaiAkhir = Math.round(cpl.data.reduce((a, b) => a + b, 0) * 100) / 100;
                                     return (
                                         <tr key={cpl.label} className="hover:bg-gray-50">
                                             <td className="px-4 py-3 font-bold text-polman-primary">{cpl.label}</td>
