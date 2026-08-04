@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 
 interface Props {
     canLogin: boolean;
@@ -31,31 +31,6 @@ const roles = [
     ['workspace_premium', 'Mutu Akademik', 'Evaluasi Program', 'Menggunakan data dashboard untuk kebutuhan evaluasi, audit, dan pengembangan kurikulum.', ['Evaluasi', 'Audit', 'Rekap', 'Status'], false],
 ];
 
-const tenants = ['TRIN', 'TRO', 'TRMO', 'TRSA'];
-
-function tenantLoginUrl(code: string) {
-    if (typeof window === 'undefined') {
-        return '/login';
-    }
-
-    const tenant = code.toLowerCase();
-    const protocol = window.location.protocol;
-    const port = window.location.port ? `:${window.location.port}` : '';
-    const hostname = window.location.hostname;
-    
-    let baseDomain: string;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        baseDomain = 'localhost';
-    } else if (hostname.endsWith('.localhost')) {
-        baseDomain = 'localhost';
-    } else {
-        const parts = hostname.split('.');
-        baseDomain = parts.slice(-2).join('.');
-    }
-
-    return `${protocol}//${tenant}.${baseDomain}${port}/login`;
-}
-
 function Icon({ name, className = 'text-xl' }: { name: string; className?: string }) {
     return <span className={`material-symbols-outlined ${className}`}>{name}</span>;
 }
@@ -84,11 +59,13 @@ export default function Welcome(_: Props) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {tenants.map((tenant) => (
-                            <a key={tenant} href={tenantLoginUrl(tenant)} className="inline-flex items-center gap-2 bg-aqua-200 text-aqua-800 px-4 py-2.5 rounded-xl font-black text-sm hover:bg-aqua-300 transition-colors shadow-sm shadow-aqua-300/40 active:scale-95 border border-aqua-300/50">
-                                {tenant}
-                            </a>
-                        ))}
+                        <Link
+                            href={route('login')}
+                            className="inline-flex items-center gap-2 bg-aqua-200 text-aqua-800 px-5 py-2.5 rounded-xl font-black text-sm hover:bg-aqua-300 transition-colors shadow-sm shadow-aqua-300/40 active:scale-95 border border-aqua-300/50"
+                        >
+                            <Icon name="login" className="text-base" />
+                            Login
+                        </Link>
                     </div>
                 </div>
             </nav>
@@ -139,13 +116,17 @@ export default function Welcome(_: Props) {
                         </div>
 
                         <div className="flex flex-wrap gap-3 pt-1">
-                            {tenants.map((tenant) => (
-                                <a key={tenant} href={tenantLoginUrl(tenant)} className="inline-flex items-center gap-2 bg-aqua-200 text-aqua-900 px-7 py-4 rounded-2xl font-black text-sm shadow-2xl shadow-aqua-300/50 hover:bg-aqua-300 hover:scale-[1.02] transition-all active:scale-95 border border-aqua-300/60">
-                                    <Icon name="rocket_launch" className="text-base" />
-                                    {tenant}
-                                </a>
-                            ))}
-                            <a href="#fitur" className="inline-flex items-center gap-2 text-aqua-700 border border-aqua-200/70 px-8 py-4 rounded-2xl font-bold text-sm hover:bg-aqua-100/50 transition-colors">
+                            <Link
+                                href={route('login')}
+                                className="inline-flex items-center gap-2 bg-aqua-200 text-aqua-900 px-7 py-4 rounded-2xl font-black text-sm shadow-2xl shadow-aqua-300/50 hover:bg-aqua-300 hover:scale-[1.02] transition-all active:scale-95 border border-aqua-300/60"
+                            >
+                                <Icon name="rocket_launch" className="text-base" />
+                                Login
+                            </Link>
+                            <a
+                                href="#fitur"
+                                className="inline-flex items-center gap-2 text-aqua-700 border border-aqua-200/70 px-8 py-4 rounded-2xl font-bold text-sm hover:bg-aqua-100/50 transition-colors"
+                            >
                                 <Icon name="info" className="text-base" />
                                 Pelajari Fitur
                             </a>
@@ -341,12 +322,13 @@ export default function Welcome(_: Props) {
                             <h2 className="text-4xl font-black text-white tracking-tight mb-3 font-headline">Siap memulai?</h2>
                             <p className="text-aqua-200/55 mb-8 text-base max-w-sm mx-auto leading-relaxed">Masuk ke sistem dan mulai kelola dokumen kurikulum sekarang juga.</p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                {tenants.map((tenant) => (
-                                    <a key={tenant} href={tenantLoginUrl(tenant)} className="inline-flex items-center justify-center gap-2 bg-aqua-200 text-aqua-900 px-6 py-4 rounded-2xl font-black text-sm hover:bg-aqua-300 transition-colors active:scale-95 shadow-xl shadow-aqua-900/30">
-                                        <Icon name="login" className="text-base" />
-                                        {tenant}
-                                    </a>
-                                ))}
+                                <Link
+                                    href={route('login')}
+                                    className="inline-flex items-center justify-center gap-2 bg-aqua-200 text-aqua-900 px-8 py-4 rounded-2xl font-black text-sm hover:bg-aqua-300 transition-colors active:scale-95 shadow-xl shadow-aqua-900/30"
+                                >
+                                    <Icon name="login" className="text-base" />
+                                    Login
+                                </Link>
                             </div>
                         </div>
                     </div>

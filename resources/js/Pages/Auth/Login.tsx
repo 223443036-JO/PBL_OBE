@@ -25,7 +25,7 @@ export default function Login() {
             {/* Header Login */}
             <div className="mb-8">
                 <h2 className="font-headline text-3xl font-bold text-gray-900">Welcome Back</h2>
-                <p className="mt-2 text-gray-600 font-body">Enter your credentials to access the TRIN portal.</p>
+                <p className="mt-2 text-gray-600 font-body">Enter your credentials to access the AE portal.</p>
             </div>
 
             <form onSubmit={submit} className="space-y-6">

@@ -26,6 +26,10 @@ Route::middleware([
 ])->group(function () {
     require __DIR__.'/auth.php';
 
+    // One-time auto login dari central
+    Route::get('/auto-login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'autoLogin'])
+        ->name('auto-login');
+
     Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
