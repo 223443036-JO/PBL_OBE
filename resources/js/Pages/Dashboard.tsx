@@ -15,7 +15,7 @@ interface DosenItem {
     cpls_count: number; cpmks_count: number; rps_status: string; rps_id: number | null;
 }
 interface DashboardProps {
-    dashboardRole: 'kaprodi' | 'dosen' | 'default';
+    dashboardRole: 'kaprodi' | 'dosen' | 'admin_jurusan' | 'master_admin' |'default';
     stats: Record<string, number>;
     coverage?: Record<string, number>;
     items: any[];
@@ -375,6 +375,72 @@ function DosenDashboard({ stats, items, shortcuts, warning }: {
     );
 }
 
+// ─── Admin Dashboard ────────────────────────────────────────────────────────
+
+function AdminJurusanDashboard({
+    stats,
+    shortcuts,
+}: {
+    stats: Record<string, number>;
+    shortcuts: Shortcut[];
+}) {
+    const { user } = usePage().props.auth as any;
+
+    return (
+        <div className="space-y-8 max-w-[1400px] mx-auto">
+
+            <div>
+                <h1 className="text-3xl font-black text-primary tracking-tighter italic uppercase font-headline">
+                    Dashboard <span className="text-[#2dce89]">Admin Jurusan</span>
+                </h1>
+
+                <p className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-widest">
+                    Selamat datang, {user?.name}
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+
+                <StatCard
+                    label="Total Dosen"
+                    value={stats.total_dosen ?? 0}
+                    color="primary"
+                />
+
+                <StatCard
+                    label="Total Mahasiswa"
+                    value={stats.total_mahasiswa ?? 0}
+                    color="secondary"
+                />
+
+                <StatCard
+                    label="Total Kelas"
+                    value={stats.total_kelas ?? 0}
+                    color="teal"
+                />
+
+                <StatCard
+                    label="Total Mata Kuliah"
+                    value={stats.total_matkul ?? 0}
+                    color="primary"
+                />
+
+            </div>
+
+            <div>
+                <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">
+                    Akses Cepat
+                </h2>
+
+                <ShortcutGrid shortcuts={shortcuts} />
+            </div>
+
+        </div>
+    );
+}
+
+
+
 // ─── Default Dashboard ────────────────────────────────────────────────────────
 
 function DefaultDashboard() {
@@ -394,21 +460,57 @@ function DefaultDashboard() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function Dashboard({ 
-    dashboardRole = 'default', 
-    stats = {}, 
-    coverage = {}, 
-    items = [], 
-    shortcuts = [], 
+export default function Dashboard({
+    dashboardRole = 'default',
+    stats = {},
+    coverage = {},
+    items = [],
+    shortcuts = [],
     warning,
- }: DashboardProps) {
-     console.log("INI DASHBOARD TSX BARU");
+}: DashboardProps) {
+
+    console.log('==============================');
+    console.log('Dashboard.tsx berhasil dirender');
+    console.log('dashboardRole :', dashboardRole);
+    console.log('stats :', stats);
+    console.log('coverage :', coverage);
+    console.log('items :', items);
+    console.log('shortcuts :', shortcuts);
+    console.log('warning :', warning);
+    console.log('==============================');
+
     return (
         <AuthenticatedLayout>
             <Head title="Dashboard" />
-            {dashboardRole === 'kaprodi' && <KaprodiDashboard stats={stats} coverage={coverage ?? {}} items={items as KaprodiItem[]} shortcuts={shortcuts} />}
-            {dashboardRole === 'dosen' && <DosenDashboard stats={stats} items={items as DosenItem[]} shortcuts={shortcuts} warning={warning} />}
-            {dashboardRole === 'default' && <DefaultDashboard />}
+
+            {dashboardRole === 'kaprodi' && (
+                <KaprodiDashboard
+                    stats={stats}
+                    coverage={coverage ?? {}}
+                    items={items as KaprodiItem[]}
+                    shortcuts={shortcuts}
+                />
+            )}
+
+            {dashboardRole === 'dosen' && (
+                <DosenDashboard
+                    stats={stats}
+                    items={items as DosenItem[]}
+                    shortcuts={shortcuts}
+                    warning={warning}
+                />
+            )}
+
+            {dashboardRole === 'admin_jurusan' && (
+                <AdminJurusanDashboard
+                    stats={stats}
+                    shortcuts={shortcuts}
+                />
+            )}
+
+            {dashboardRole === 'default' && (
+                <DefaultDashboard />
+            )}
         </AuthenticatedLayout>
     );
 }

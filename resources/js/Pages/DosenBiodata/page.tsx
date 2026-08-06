@@ -55,7 +55,15 @@ export default function DosenBiodataPage({ biodatas }: { biodatas: DosenBiodata[
     const { data, setData, post, patch, reset, processing, errors, clearErrors } = useForm(initialForm);
     const biodataError = (errors as Record<string, string | undefined>).biodata;
     const { roles } = usePage().props.auth as any;
+
+    const isMasterAdmin = roles?.includes('Master Admin');
+    const isAdmin = roles?.includes('Admin Jurusan');
     const isKaprodi = roles?.includes('Kaprodi');
+    const isDosen = roles?.includes('Dosen');
+
+    // Permission
+    const canManageDosen = isMasterAdmin || isAdmin;
+    const canViewDosen = isMasterAdmin || isAdmin || isKaprodi;
 
     const fullName = (biodata: Pick<DosenBiodata, 'gelar_depan' | 'nama_lengkap' | 'gelar_belakang'>) => {
         return [biodata.gelar_depan, biodata.nama_lengkap, biodata.gelar_belakang].filter(Boolean).join(' ');
@@ -121,13 +129,16 @@ export default function DosenBiodataPage({ biodatas }: { biodatas: DosenBiodata[
                 <div>
                     <h2 className="font-headline font-bold text-2xl text-gray-900">Biodata Dosen</h2>
                     <p className="text-gray-500 text-sm font-body mt-1">
-                        {isKaprodi
+                        {isAdmin
                             ? 'Daftar biodata dosen yang telah mendaftar dan melengkapi profil mereka.'
                             : 'Data biodata dosen prodi.'}
                     </p>
                 </div>
-                {isKaprodi && (
-                    <button onClick={openAddModal} className="bg-polman-primary hover:bg-polman-secondary text-white px-5 py-2.5 rounded-lg font-bold shadow-sm transition-colors">
+                
+                {canManageDosen && (
+                    <button 
+                        onClick={openAddModal} 
+                        className="bg-polman-primary hover:bg-polman-secondary text-white px-5 py-2.5 rounded-lg font-bold shadow-sm transition-colors">
                         + Tambah Biodata
                     </button>
                 )}
@@ -149,7 +160,7 @@ export default function DosenBiodataPage({ biodatas }: { biodatas: DosenBiodata[
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Prodi</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Jabatan</th>
                                 <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase">Status Akun</th>
-                                {isKaprodi && <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase">Aksi</th>}
+                                {canManageDosen && <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase">Aksi</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -188,7 +199,7 @@ export default function DosenBiodataPage({ biodatas }: { biodatas: DosenBiodata[
                                             {biodata.user ? 'Sudah Ada Akun' : 'Belum Ada Akun'}
                                         </span>
                                     </td>
-                                    {isKaprodi && (
+                                    {canManageDosen && (
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-3">
                                                 <button

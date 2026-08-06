@@ -16,6 +16,14 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
+        if ($user->hasRole('Master Admin')) {
+            return $this->masterAdminDashboard($user);
+        }
+
+        if ($user->hasRole('Admin Jurusan')) {
+            return $this->adminJurusanDashboard($user);
+        }
+
         if ($user->hasRole('Kaprodi')) {
             return $this->kaprodiDashboard($user);
         }
@@ -121,10 +129,47 @@ class DashboardController extends Controller
                 ['label' => 'Curriculum Map',    'href' => route('matrix.index'),            'description' => 'Matriks CPL-MK-IEA-PPM'],
                 ['label' => 'Kelola RPS',        'href' => route('rps.index'),               'description' => 'Rencana Pembelajaran Semester'],
                 ['label' => 'Biodata Dosen',     'href' => route('biodata-dosen.index'),     'description' => 'Data lengkap dosen'],
-                ['label' => 'Akun Dosen',        'href' => route('dosen.index'),             'description' => 'Manajemen akun dosen'],
+                
             ],
         ]);
     }
+
+
+    private function adminJurusanDashboard($user)
+{
+    return Inertia::render('Dashboard', [
+        'dashboardRole' => 'admin_jurusan',
+
+        'stats' => [
+            'total_dosen'      => 0,
+            'total_mahasiswa'  => 0,
+            'total_kelas'      => 0,
+            'total_matkul'     => 0,
+        ],
+
+        'items' => [],
+
+        'shortcuts' => [
+            [
+                'label' => 'Kelola Dosen',
+                'href' => route('biodata-dosen.index'),
+                'description' => 'Manajemen data dosen',
+            ],
+            [
+                'label' => 'Kelola Mahasiswa',
+                'href' => route('asesmen.mahasiswa'),
+                'description' => 'Manajemen data mahasiswa',
+            ],
+            [
+                'label' => 'Kelola Kelas',
+                'href' => route('asesmen.kelas'),
+                'description' => 'Manajemen kelas',
+            ],
+        ],
+    ]);
+}
+
+
 
     private function dosenDashboard($user)
     {

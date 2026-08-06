@@ -72,7 +72,7 @@ Route::middleware([
         Route::patch('/biodata-saya', [DosenBiodataController::class, 'updateSelf'])->name('biodata-saya.update');
     });
 
-    Route::middleware(['auth', 'role:Kaprodi'])->group(function () {
+    Route::middleware(['auth', 'role:Kaprodi|Admin Jurusan'])->group(function () {
         Route::resource('mata-kuliah', MataKuliahController::class)->except(['create', 'show', 'edit']);
 
         // FIX (fitur baru): route verifikasi RPS sudah ada logic-nya di
@@ -83,19 +83,49 @@ Route::middleware([
         Route::patch('/rps/{id}/verifikasi', [RpsController::class, 'verifikasi'])->name('rps.verifikasi');
         Route::patch('/rps/{id}/batal-verifikasi', [RpsController::class, 'batalVerifikasi'])->name('rps.batal-verifikasi');
 
+
+
+        Route::middleware(['auth', 'role:Admin Jurusan'])->group(function () {
+
+        Route::resource('biodata-dosen', DosenBiodataController::class)
+            ->parameters([
+                'biodata-dosen' => 'dosenBiodata'
+            ])
+            ->only([
+                'index',
+                'store',
+                'update',
+                'destroy'
+            ]);
+
+        Route::get('/dosen', [DosenController::class, 'index'])
+            ->name('dosen.index');
+
+        Route::get('/dosen/create', [DosenController::class, 'create'])
+            ->name('dosen.create');
+
+        Route::post('/dosen', [DosenController::class, 'store'])
+            ->name('dosen.store');
+
+        Route::put('/dosen/{user}', [DosenController::class, 'update'])
+            ->name('dosen.update');
+
+    });
+
         // index dipindah ke sini — hanya Kaprodi yang bisa lihat semua biodata dosen
         Route::resource('biodata-dosen', DosenBiodataController::class)
-            ->parameters(['biodata-dosen' => 'dosenBiodata'])
-            ->only(['index', 'store', 'update', 'destroy']);
+            ->parameters([
+                'biodata-dosen' => 'dosenBiodata'
+                ])
+            ->only([
+                'index', 
+                'store', 
+                'update', 
+                'destroy']);
 
         Route::get('/mata-kuliah/{id}/dosen-pengampu', [MataKuliahController::class, 'dosenPengampu'])->name('mata-kuliah.dosen-pengampu');
         Route::post('/mata-kuliah/{id}/dosen-pengampu', [MataKuliahController::class, 'attachDosen'])->name('mata-kuliah.attach-dosen');
         Route::delete('/mata-kuliah/{mkId}/dosen-pengampu/{dosenId}', [MataKuliahController::class, 'detachDosen'])->name('mata-kuliah.detach-dosen');
-
-        Route::get('/dosen', [DosenController::class, 'index'])->name('dosen.index');
-        Route::get('/dosen/create', [DosenController::class, 'create'])->name('dosen.create');
-        Route::post('/dosen', [DosenController::class, 'store'])->name('dosen.store');
-        Route::put('/dosen/{user}', [DosenController::class, 'update'])->name('dosen.update');
 
         Route::resource('indikator-kinerja', IndikatorKinerjaController::class)->except(['create', 'show', 'edit']);
 
