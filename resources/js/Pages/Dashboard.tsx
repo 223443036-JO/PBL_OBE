@@ -394,7 +394,15 @@ function DefaultDashboard() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function Dashboard({ dashboardRole = 'default', stats = {}, coverage = {}, items = [], shortcuts = [], warning }: DashboardProps) {
+export default function Dashboard({ 
+    dashboardRole = 'default', 
+    stats = {}, 
+    coverage = {}, 
+    items = [], 
+    shortcuts = [], 
+    warning,
+ }: DashboardProps) {
+     console.log("INI DASHBOARD TSX BARU");
     return (
         <AuthenticatedLayout>
             <Head title="Dashboard" />
