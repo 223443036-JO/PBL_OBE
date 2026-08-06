@@ -48,10 +48,18 @@ function SubMenuLink({ href, active, children, onClick }: { href: string; active
 
 export default function AuthenticatedLayout({ children }: PropsWithChildren<Props>) {
     const { user, roles } = usePage().props.auth as any;
+
+    console.log("========== DEBUG ==========");
+    console.log("roles :", roles);
+    console.log("includes :", roles?.includes("Admin Jurusan"));
+    console.log("===========================");
+
     const { tenant } = usePage().props as any;
     const tenantKode = tenant?.kode ?? 'PORTAL';
     const currentUrl = usePage().url;
+    const isAdmin = roles?.includes('Admin Jurusan');
     const isKaprodi = roles?.includes('Kaprodi');
+    const isDosen = roles?.includes('Dosen');
 
     const isMasterDataActive = currentUrl.startsWith('/cpl') ||
         currentUrl.startsWith('/ppm') ||
@@ -64,7 +72,13 @@ export default function AuthenticatedLayout({ children }: PropsWithChildren<Prop
     const isAsesmenActive = currentUrl.startsWith('/asesmen');
     const [isAsesmenFolderOpen, setIsAsesmenFolderOpen] = useState(isAsesmenActive);
     const [isMasterFolderOpen, setIsMasterFolderOpen] = useState(isMasterDataActive);
-    const roleLabel = isKaprodi ? 'Kaprodi' : 'Dosen';
+    const roleLabel =
+        isAdmin
+            ? 'Admin Jurusan'
+            : isKaprodi
+                ? 'Kaprodi'
+                : 'Dosen';
+                
     const initials = (user?.name ?? 'User')
         .split(' ')
         .slice(0, 2)
