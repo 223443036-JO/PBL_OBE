@@ -108,41 +108,82 @@ const buildPembelajaran = (values: ReturnType<typeof parsePembelajaran>) => {
     ].join('\n');
 };
 
-export default function RpsIndex({ rps, mataKuliahs, allDosen }: { rps: Rps[], mataKuliahs: MataKuliah[], allDosen: DosenBiodata[] }) {
+export default function RpsIndex({
+    rps,
+    mataKuliahs,
+    allDosen
+}: {
+    rps: Rps[],
+    mataKuliahs: MataKuliah[],
+    allDosen: DosenBiodata[]
+}) {
     const { roles } = usePage().props.auth as any;
+
     const isDosen = roles?.includes('Dosen') && !roles?.includes('Kaprodi');
     const isKaprodi = roles?.includes('Kaprodi');
+
+    // Hanya Dosen yang boleh membuat / mengubah / menghapus RPS
+    const canManageRps = isDosen;
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [selectedId, setSelectedId] = useState<number | null>(null);
+
     const [cpmks, setCpmks] = useState<CPMK[]>([]);
     const [cpls, setCpls] = useState<CPL[]>([]);
     const [dosenPengampuMk, setDosenPengampuMk] = useState<DosenBiodata[]>([]);
+
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [verifyId, setVerifyId] = useState<number | null>(null);
     const [batalVerifyId, setBatalVerifyId] = useState<number | null>(null);
 
     // -- Kelola CPMK inline di form RPS --
-    const emptyCpmkForm = { id: null as number | null, kode_cpmk: '', deskripsi: '', indikator_ids: [] as number[] };
+    const emptyCpmkForm = {
+        id: null as number | null,
+        kode_cpmk: '',
+        deskripsi: '',
+        indikator_ids: [] as number[]
+    };
+
     const [cpmkForm, setCpmkForm] = useState(emptyCpmkForm);
     const [savingCpmk, setSavingCpmk] = useState(false);
     const [cpmkFormError, setCpmkFormError] = useState('');
     const [deleteCpmkId, setDeleteCpmkId] = useState<number | null>(null);
+
     const [search, setSearch] = useRemember('', 'rps.search');
-    // FIX: pakai useRemember biar nomor halaman gak balik ke 1 pas
-    // navigasi pergi-pulang (misal abis cetak PDF di tab baru terus balik)
     const [page, setPage] = useRemember(1, 'rps.page');
+
     const PER_PAGE = 10;
 
+
     const filtered = rps.filter((item) =>
-        item.mata_kuliah?.kode_mk.toLowerCase().includes(search.toLowerCase()) ||
-        item.mata_kuliah?.nama_mk.toLowerCase().includes(search.toLowerCase()) ||
-        (item.dosen_biodata ? dosenFullName(item.dosen_biodata).toLowerCase().includes(search.toLowerCase()) : false) ||
+        item.mata_kuliah?.kode_mk
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
+        item.mata_kuliah?.nama_mk
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
+        (
+            item.dosen_biodata
+                ? dosenFullName(item.dosen_biodata)
+                    .toLowerCase()
+                    .includes(search.toLowerCase())
+                : false
+        ) ||
         item.tahun_akademik.includes(search)
     );
+
     const totalPages = Math.ceil(filtered.length / PER_PAGE);
-    const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-    const handleSearch = (val: string) => { setSearch(val); setPage(1); };
+
+    const paginated = filtered.slice(
+        (page - 1) * PER_PAGE,
+        page * PER_PAGE
+    );
+
+    const handleSearch = (val: string) => {
+        setSearch(val);
+        setPage(1);
+    };
 
     const { data, setData, post, reset, processing, errors, clearErrors } = useForm({
         mata_kuliah_id: '',
@@ -449,9 +490,15 @@ export default function RpsIndex({ rps, mataKuliahs, allDosen }: { rps: Rps[], m
                             className="pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-polman-primary w-52"
                         />
                     </div>
-                    <button onClick={openAddModal} className="bg-polman-primary hover:bg-polman-secondary text-white px-5 py-2.5 rounded-lg font-bold shadow-sm transition-colors">
-                        + Tambah RPS
-                    </button>
+                    
+                    {canManageRps && (
+                        <button
+                            onClick={openAddModal}
+                            className="bg-polman-primary hover:bg-polman-secondary text-white px-5 py-2.5 rounded-lg font-bold shadow-sm transition-colors"
+                        >
+                            + Tambah RPS
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -495,18 +542,67 @@ export default function RpsIndex({ rps, mataKuliahs, allDosen }: { rps: Rps[], m
                                             </span>
                                         )}
                                     </td>
+
                                     <td className="px-6 py-4 text-right">
+                                        
                                         <div className="flex items-center justify-end gap-3">
-                                            <a href={route('rps.pdf', item.id)} target="_blank" rel="noreferrer" className="text-gray-600 hover:text-gray-900 font-bold px-2 text-sm transition-colors">Print</a>
+
+                                            {/* PRINT - Dosen dan Kaprodi boleh */}
+                                            <a
+                                                href={route('rps.pdf', item.id)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-gray-600 hover:text-gray-900 font-bold px-2 text-sm transition-colors"
+                                            >
+                                                Print
+                                            </a>
+
+                                            {/* ================================
+                                                KHUSUS KAPRODI
+                                            ================================ */}
+
                                             {isKaprodi && item.status !== 'disetujui' && (
-                                                <button onClick={() => setVerifyId(item.id)} className="text-green-600 hover:text-green-800 font-bold px-2 text-sm transition-colors">Verifikasi</button>
+                                                <button
+                                                    onClick={() => setVerifyId(item.id)}
+                                                    className="text-green-600 hover:text-green-800 font-bold px-2 text-sm transition-colors"
+                                                >
+                                                    Verifikasi
+                                                </button>
                                             )}
+
                                             {isKaprodi && item.status === 'disetujui' && (
-                                                <button onClick={() => setBatalVerifyId(item.id)} className="text-orange-500 hover:text-orange-700 font-bold px-2 text-sm transition-colors">Batal Verifikasi</button>
+                                                <button
+                                                    onClick={() => setBatalVerifyId(item.id)}
+                                                    className="text-orange-500 hover:text-orange-700 font-bold px-2 text-sm transition-colors"
+                                                >
+                                                    Batal Verifikasi
+                                                </button>
                                             )}
-                                            <button onClick={() => openEditModal(item)} className="text-blue-600 hover:text-blue-800 font-bold px-2 text-sm transition-colors">Edit</button>
-                                            <button onClick={() => setDeleteId(item.id)} className="text-red-500 hover:text-red-700 font-bold px-2 text-sm transition-colors">Hapus</button>
+
+                                            {/* ================================
+                                                KHUSUS DOSEN
+                                            ================================ */}
+
+                                            {canManageRps && (
+                                                <>
+                                                    <button
+                                                        onClick={() => openEditModal(item)}
+                                                        className="text-blue-600 hover:text-blue-800 font-bold px-2 text-sm transition-colors"
+                                                    >
+                                                        Edit
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => setDeleteId(item.id)}
+                                                        className="text-red-500 hover:text-red-700 font-bold px-2 text-sm transition-colors"
+                                                    >
+                                                        Hapus
+                                                    </button>
+                                                </>
+                                            )}
+
                                         </div>
+                                        
                                     </td>
                                 </tr>
                             ))
