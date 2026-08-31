@@ -1,4 +1,3 @@
-import React from 'react';
 import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
@@ -33,12 +32,24 @@ export default function IeaPpmMatrix({ ppms, ieas, matrix }: Props) {
                 <table className="min-w-full border-collapse">
                     <thead>
                         <tr className="bg-polman-neutral">
-                            <th className="p-4 border-b border-r text-left text-xs font-bold text-gray-500 uppercase sticky left-0 bg-polman-neutral z-10 w-48">
+                            <th className="p-4 border-b border-r text-left text-xs font-bold text-gray-500 uppercase sticky left-0 bg-polman-neutral z-20 min-w-[220px] max-w-[280px]">
                                 PPM \ IEA
                             </th>
                             {ieas.map(iea => (
-                                <th key={iea.id} className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px]">
+                                <th 
+                                    key={iea.id} 
+                                    title={iea.deskripsi || iea.kode}
+                                    className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px] relative group cursor-pointer"
+                                >
                                     {iea.kode}
+
+                                    {/* Pop-up penjelasan saat IEA di-hover */}
+                                    {iea.deskripsi && (
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2.5 bg-gray-900 text-white text-xs font-normal normal-case rounded-lg shadow-xl z-50 pointer-events-none text-left">
+                                            <div className="font-bold border-b border-gray-700 pb-1 mb-1">{iea.kode}</div>
+                                            {iea.deskripsi}
+                                        </div>
+                                    )}
                                 </th>
                             ))}
                         </tr>
@@ -46,10 +57,13 @@ export default function IeaPpmMatrix({ ppms, ieas, matrix }: Props) {
                     <tbody>
                         {ppms.map(ppm => (
                             <tr key={ppm.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="p-4 border-b border-r sticky left-0 bg-white font-bold text-sm text-gray-700 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                                {/* Kolom PPM kiri yang sudah dibenerin indensinya */}
+                                <td className="p-4 border-b border-r sticky left-0 bg-white font-bold text-sm text-gray-700 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] min-w-[220px] max-w-[280px]">
                                     <div className="flex flex-col">
-                                        <span>{ppm.kode}</span>
-                                        <span className="text-[10px] font-normal text-gray-400 truncate w-40">{ppm.deskripsi}</span>
+                                        <span className="text-polman-primary font-bold">{ppm.kode}</span>
+                                        <span className="text-xs font-normal text-gray-500 whitespace-normal break-words leading-relaxed mt-1">
+                                            {ppm.deskripsi}
+                                        </span>
                                     </div>
                                 </td>
                                 {ieas.map(iea => {

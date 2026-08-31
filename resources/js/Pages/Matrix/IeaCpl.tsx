@@ -1,22 +1,21 @@
-import React from 'react';
 import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 interface Props {
-    cpls: any[];
     ieas: any[];
-    matrix: any; // Format: { cpl_id: { iea_id: true } }
+    cpls: any[];
+    matrix: any; // Format: { iea_id: { cpl_id: true } }
 }
 
-export default function IeaCplMatrix({ cpls, ieas, matrix }: Props) {
+export default function IeaCplMatrix({ ieas, cpls, matrix }: Props) {
     
-    const handleSync = (cplId: number, ieaId: number, isSelected: boolean) => {
-        router.post('/matrix/sync-cpl-iea', {
-            cpl_id: cplId,
+    const handleSync = (ieaId: number, cplId: number, isSelected: boolean) => {
+        router.post('/matrix/sync-iea-cpl', {
             iea_id: ieaId,
+            cpl_id: cplId,
             is_selected: isSelected
         }, {
-            preserveScroll: true, // Agar halaman tidak loncat saat mencentang
+            preserveScroll: true,
         });
     };
 
@@ -26,40 +25,55 @@ export default function IeaCplMatrix({ cpls, ieas, matrix }: Props) {
             
             <div className="mb-6">
                 <h2 className="font-headline font-bold text-2xl text-gray-900">Pemetaan IEA x CPL</h2>
-                <p className="text-gray-500 text-sm mt-1">Tentukan keterkaitan antara Indikator Elemen Able dengan Capaian Profil Lulusan.</p>
+                <p className="text-gray-500 text-sm mt-1">Tentukan keterkaitan antara Indikator Elemen Able dengan Capaian Pembelajaran Lulusan.</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
                 <table className="min-w-full border-collapse">
                     <thead>
                         <tr className="bg-polman-neutral">
-                            <th className="p-4 border-b border-r text-left text-xs font-bold text-gray-500 uppercase sticky left-0 bg-polman-neutral z-10 w-48">
-                                CPL \ IEA
+                            <th className="p-4 border-b border-r text-left text-xs font-bold text-gray-500 uppercase sticky left-0 bg-polman-neutral z-20 min-w-[220px] max-w-[280px]">
+                                IEA \ CPL
                             </th>
-                            {ieas.map(iea => (
-                                <th key={iea.id} className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px]">
-                                    {iea.kode}
+                            {cpls.map(cpl => (
+                                <th 
+                                    key={cpl.id} 
+                                    title={cpl.deskripsi || cpl.kode}
+                                    className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px] relative group cursor-pointer"
+                                >
+                                    {cpl.kode}
+
+                                    {/* Pop-up penjelasan saat CPL di-hover */}
+                                    {cpl.deskripsi && (
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2.5 bg-gray-900 text-white text-xs font-normal normal-case rounded-lg shadow-xl z-50 pointer-events-none text-left">
+                                            <div className="font-bold border-b border-gray-700 pb-1 mb-1">{cpl.kode}</div>
+                                            {cpl.deskripsi}
+                                        </div>
+                                    )}
                                 </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {cpls.map(cpl => (
-                            <tr key={cpl.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="p-4 border-b border-r sticky left-0 bg-white font-bold text-sm text-gray-700 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                        {ieas.map(iea => (
+                            <tr key={iea.id} className="hover:bg-gray-50 transition-colors">
+                                {/* Kolom IEA kiri dengan indensi rapi */}
+                                <td className="p-4 border-b border-r sticky left-0 bg-white font-bold text-sm text-gray-700 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] min-w-[220px] max-w-[280px]">
                                     <div className="flex flex-col">
-                                        <span>{cpl.kode}</span>
-                                        <span className="text-[10px] font-normal text-gray-400 truncate w-40">{cpl.deskripsi}</span>
+                                        <span className="text-polman-primary font-bold">{iea.kode}</span>
+                                        <span className="text-xs font-normal text-gray-500 whitespace-normal break-words leading-relaxed mt-1">
+                                            {iea.deskripsi}
+                                        </span>
                                     </div>
                                 </td>
-                                {ieas.map(iea => {
-                                    const isChecked = matrix[cpl.id] && matrix[cpl.id][iea.id];
+                                {cpls.map(cpl => {
+                                    const isChecked = matrix[iea.id] && matrix[iea.id][cpl.id];
                                     return (
-                                        <td key={iea.id} className="p-4 border-b text-center">
+                                        <td key={cpl.id} className="p-4 border-b text-center">
                                             <input 
                                                 type="checkbox"
                                                 checked={!!isChecked}
-                                                onChange={(e) => handleSync(cpl.id, iea.id, e.target.checked)}
+                                                onChange={(e) => handleSync(iea.id, cpl.id, e.target.checked)}
                                                 className="w-5 h-5 rounded border-gray-300 text-polman-primary focus:ring-polman-primary cursor-pointer transition-all"
                                             />
                                         </td>

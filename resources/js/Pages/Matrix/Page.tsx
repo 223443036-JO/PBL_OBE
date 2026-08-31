@@ -106,8 +106,20 @@ export default function MatrixPage({ cpls, ieas, ppms, mataKuliahs, cplToPpmMatr
                             <tr className="bg-polman-neutral">
                                 <th className="p-4 border-b border-r text-left text-xs font-bold text-gray-700 uppercase sticky left-0 bg-polman-neutral z-10 w-72 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Mata Kuliah \ CPL</th>
                                 {cpls.map(cpl => (
-                                    <th key={cpl.id} className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px]" title={cpl.deskripsi}>
+                                    <th
+                                        key={cpl.id}
+                                        title={cpl.deskripsi || cpl.kode}
+                                        className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px] relative group cursor-pointer"
+                                    >
                                         {cpl.kode}
+
+                                        {/* Pop-up penjelasan saat CPL di-hover */}
+                                        {cpl.deskripsi && (
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block w-48 p-2.5 bg-gray-900 text-white text-xs font-normal normal-case rounded-lg shadow-xl z-50 pointer-events-none text-left">
+                                                <div className="font-bold border-b border-gray-700 pb-1 mb-1">{cpl.kode}</div>
+                                                {cpl.deskripsi}
+                                            </div>
+                                        )}
                                     </th>
                                 ))}
                             </tr>
@@ -119,7 +131,7 @@ export default function MatrixPage({ cpls, ieas, ppms, mataKuliahs, cplToPpmMatr
                                 <tr key={mk.id} className="hover:bg-gray-50">
                                     <td className="p-4 border-b border-r sticky left-0 bg-white z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
                                         <div className="font-bold text-sm text-gray-900">{mk.kode_mk}</div>
-                                        <div className="text-[11px] text-gray-500 truncate w-64">{mk.nama_mk}</div>
+                                        <div className="text-[11px] text-gray-500 whitespace-normal break-words leading-relaxed w-64">{mk.nama_mk}</div>
                                     </td>
                                     {cpls.map(cpl => {
                                         // Pengecekan relasi Many-to-Many
@@ -150,7 +162,22 @@ export default function MatrixPage({ cpls, ieas, ppms, mataKuliahs, cplToPpmMatr
                         <thead>
                             <tr className="bg-polman-neutral">
                                 <th className="p-4 border-b border-r text-left text-xs font-bold text-gray-700 uppercase sticky left-0 bg-polman-neutral z-10 w-64">CPL \ IEA</th>
-                                {ieas.map(iea => <th key={iea.id} className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px]">{iea.kode}</th>)}
+                                {ieas.map(iea => (
+                                    <th
+                                        key={iea.id}
+                                        title={iea.deskripsi || iea.kode}
+                                        className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px] relative group cursor-pointer"
+                                    >
+                                        {iea.kode}
+
+                                        {iea.deskripsi && (
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block w-48 p-2.5 bg-gray-900 text-white text-xs font-normal normal-case rounded-lg shadow-xl z-50 pointer-events-none text-left">
+                                                <div className="font-bold border-b border-gray-700 pb-1 mb-1">{iea.kode}</div>
+                                                {iea.deskripsi}
+                                            </div>
+                                        )}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
@@ -160,7 +187,7 @@ export default function MatrixPage({ cpls, ieas, ppms, mataKuliahs, cplToPpmMatr
                                 <tr key={cpl.id} className="hover:bg-gray-50">
                                     <td className="p-4 border-b border-r sticky left-0 bg-white z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
                                         <div className="font-bold text-sm text-polman-primary">{cpl.kode}</div>
-                                        <div className="text-[10px] text-gray-500 truncate w-56">{cpl.deskripsi}</div>
+                                        <div className="text-[10px] text-gray-500 whitespace-normal break-words leading-relaxed w-56">{cpl.deskripsi}</div>
                                     </td>
                                     {ieas.map(iea => {
                                         const isChecked = cpl.ieas?.some(item => item.id === iea.id) || false;
@@ -184,7 +211,22 @@ export default function MatrixPage({ cpls, ieas, ppms, mataKuliahs, cplToPpmMatr
                         <thead>
                             <tr className="bg-polman-neutral">
                                 <th className="p-4 border-b border-r text-left text-xs font-bold text-gray-700 uppercase sticky left-0 bg-polman-neutral z-10 w-64">PPM \ IEA</th>
-                                {ieas.map(iea => <th key={iea.id} className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px]">{iea.kode}</th>)}
+                                {ieas.map(iea => (
+                                    <th
+                                        key={iea.id}
+                                        title={iea.deskripsi || iea.kode}
+                                        className="p-4 border-b text-center text-[10px] font-bold text-polman-primary uppercase min-w-[80px] relative group cursor-pointer"
+                                    >
+                                        {iea.kode}
+
+                                        {iea.deskripsi && (
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block w-48 p-2.5 bg-gray-900 text-white text-xs font-normal normal-case rounded-lg shadow-xl z-50 pointer-events-none text-left">
+                                                <div className="font-bold border-b border-gray-700 pb-1 mb-1">{iea.kode}</div>
+                                                {iea.deskripsi}
+                                            </div>
+                                        )}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
@@ -194,7 +236,7 @@ export default function MatrixPage({ cpls, ieas, ppms, mataKuliahs, cplToPpmMatr
                                 <tr key={ppm.id} className="hover:bg-gray-50">
                                     <td className="p-4 border-b border-r sticky left-0 bg-white z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
                                         <div className="font-bold text-sm text-polman-primary">{ppm.kode}</div>
-                                        <div className="text-[10px] text-gray-500 truncate w-56">{ppm.deskripsi}</div>
+                                        <div className="text-[10px] text-gray-500 whitespace-normal break-words leading-relaxed w-56">{ppm.deskripsi}</div>
                                     </td>
                                     {ieas.map(iea => {
                                         const isChecked = ppm.ieas?.some(item => item.id === iea.id) || false;
@@ -222,7 +264,22 @@ export default function MatrixPage({ cpls, ieas, ppms, mataKuliahs, cplToPpmMatr
                         <thead>
                             <tr className="bg-polman-secondary text-white">
                                 <th className="p-4 border-b border-r border-polman-primary text-left text-xs font-bold uppercase sticky left-0 bg-polman-secondary z-10 w-64">CPL \ PPM</th>
-                                {ppms.map(ppm => <th key={ppm.id} className="p-4 border-b border-polman-primary text-center text-[10px] font-bold uppercase min-w-[80px]">{ppm.kode}</th>)}
+                                {ppms.map(ppm => (
+                                    <th
+                                        key={ppm.id}
+                                        title={ppm.deskripsi || ppm.kode}
+                                        className="p-4 border-b border-polman-primary text-center text-[10px] font-bold uppercase min-w-[80px] relative group cursor-pointer"
+                                    >
+                                        {ppm.kode}
+
+                                        {ppm.deskripsi && (
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block w-48 p-2.5 bg-gray-900 text-white text-xs font-normal normal-case rounded-lg shadow-xl z-50 pointer-events-none text-left">
+                                                <div className="font-bold border-b border-gray-700 pb-1 mb-1">{ppm.kode}</div>
+                                                {ppm.deskripsi}
+                                            </div>
+                                        )}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
