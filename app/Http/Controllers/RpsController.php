@@ -304,6 +304,21 @@ class RpsController extends Controller
                     'Anda tidak diperbolehkan mengubah RPS dosen lain.'
                 );
             }
+
+            /**
+             * SECURITY CHECK
+             *
+             * Dosen tidak boleh mengedit RPS yang statusnya
+             * sudah "disetujui" oleh Kaprodi. Ini melengkapi
+             * tombol Edit yang di-disable di frontend, supaya
+             * tidak bisa diakali lewat request manual.
+             */
+            if ($rps->status === 'disetujui') {
+                abort(
+                    403,
+                    'RPS yang sudah disetujui Kaprodi tidak dapat diedit lagi.'
+                );
+            }
         }
 
         /**
