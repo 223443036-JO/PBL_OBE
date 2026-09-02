@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\AsesmenService;
+use App\Models\DosenBiodata;
 use App\Models\Kelas;
-use App\Models\Mahasiswa;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use App\Services\AsesmenService;
+use App\Models\Mahasiswa;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -41,8 +43,26 @@ class AsesmenController extends Controller
     // ── Kelas ────────────────────────────────────────────────────
     public function kelasIndex()
     {
-        $kelas = Kelas::withCount('mahasiswas')->orderBy('tingkat')->get();
-        return Inertia::render('Asesmen/Kelas', compact('kelas'));
+        $kelas = Kelas::withCount('mahasiswas')
+            ->with('waliDosen')
+            ->orderBy('tingkat')
+            ->orderBy('kode_kelas')
+            ->get();
+
+        $dosen = DosenBiodata::query()
+            ->orderBy('nama_lengkap')
+            ->get([
+                'id',
+                'nama_lengkap',
+                'gelar_depan',
+                'gelar_belakang',
+                'prodi',
+            ]);
+
+        return Inertia::render('Asesmen/Kelas', [
+            'kelas' => $kelas,
+            'dosen' => $dosen,
+        ]);
     }
 
     public function kelasStore(Request $request)
@@ -69,6 +89,63 @@ class AsesmenController extends Controller
     {
         Kelas::findOrFail($id)->delete();
         return redirect()->back()->with('success', 'Kelas berhasil dihapus!');
+    }
+
+    // ── Assign Wali ────────────────────────────────────────────────
+    public function assignWali(Request $request, Kelas $kelas)
+    {
+        $validated = $request->validate([
+            'wali_dosen_id' => [
+                'nullable',
+                Rule::exists('dosen_biodatas', 'id')
+                    ->where(function ($query) {
+                        $query->where('tenant_id', tenant('id'));
+                    }),
+            ],
+        ]);
+
+        $kelas->update([
+            'wali_dosen_id' => $validated['wali_dosen_id'] ?? null,
+        ]);
+
+        return back()->with('success', 'Wali kelas berhasil diperbarui.');
+    }
+
+    public function kelasWali()
+    {
+        $user = auth()->user();
+
+        $kelas = Kelas::withCount('mahasiswas')
+            ->with('waliDosen')
+            ->where('wali_dosen_id', $user->dosen_biodata_id)
+            ->orderBy('tingkat')
+            ->orderBy('kode_kelas')
+            ->get();
+
+        return Inertia::render('Asesmen/KelasWali', [
+            'kelas' => $kelas,
+        ]);
+    }
+
+    public function kelasWaliShow(Kelas $kelas)
+    {
+        $user = auth()->user();
+
+        // Pastikan kelas ini memang merupakan kelas yang diwalikan
+        // oleh Dosen yang sedang login.
+        abort_unless(
+            (int) $kelas->wali_dosen_id === (int) $user->dosen_biodata_id,
+            403
+        );
+
+        $mahasiswas = Mahasiswa::where('kelas_id', $kelas->id)
+            ->orderBy('nim')
+            ->get();
+
+        return Inertia::render('Asesmen/KelasWaliShow', [
+            'kelas' => $kelas,
+            'mahasiswas' => $mahasiswas,
+        ]);
     }
 
     // ── Mahasiswa ────────────────────────────────────────────────

@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Stancl\Tenancy\Facades\Tenancy;
+use App\Models\Kelas;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -28,15 +29,29 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
+
     public function share(Request $request): array
     {
+        $user = $request->user();
+
+        $hasWaliKelas = false;
+
+        if ($user && $user->dosen_biodata_id) {
+            $hasWaliKelas = Kelas::where(
+                'wali_dosen_id',
+                $user->dosen_biodata_id
+            )->exists();
+        }
+
         return [
             ...parent::share($request),
+
             'auth' => [
-                'user' => $request->user(),
-                'roles' => $request->user() ? $request->user()->getRoleNames() : [],
-                'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name') : [],
+                'user' => $user,
+                'roles' => $user?->getRoleNames() ?? [],
+                'has_wali_kelas' => $hasWaliKelas,
             ],
+            
             'tenant' => [
                 'id'   => tenancy()->initialized ? tenant('id') : null,
                 'kode' => tenancy()->initialized ? strtoupper(tenant('id')) : (request()->getHost() !== 'localhost' ? strtoupper(explode('.', request()->getHost())[0]) : 'PORTAL'),

@@ -191,6 +191,26 @@ Route::middleware([
         )->name('biodata-saya.update');
     });
 
+    /*
+    |--------------------------------------------------------------------------
+    | DOSEN - KELAS WALI
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware(['auth', 'role:Dosen'])->group(function () {
+
+        Route::get(
+            '/asesmen/kelas-wali',
+            [AsesmenController::class, 'kelasWali']
+        )->name('asesmen.kelas.wali.dosen');
+
+        Route::get(
+            '/asesmen/kelas-wali/{kelas}',
+            [AsesmenController::class, 'kelasWaliShow']
+        )->name('asesmen.kelas.wali.show');
+    });
+
+
 
     /*
     |--------------------------------------------------------------------------
@@ -366,20 +386,24 @@ Route::middleware([
         | Asesmen - Kelas
         |--------------------------------------------------------------------------
         */
-        Route::get(
-            '/asesmen/kelas',
-            [AsesmenController::class, 'kelasIndex']
-        )->name('asesmen.kelas');
+        Route::get('/asesmen/kelas', [AsesmenController::class, 'kelasIndex'])
+            ->middleware('role:Kaprodi|Admin Jurusan')
+            ->name('asesmen.kelas');
 
-        Route::post(
-            '/asesmen/kelas',
-            [AsesmenController::class, 'kelasStore']
-        )->name('asesmen.kelas.store');
+        Route::post('/asesmen/kelas', [AsesmenController::class, 'kelasStore'])
+            ->middleware('role:Admin Jurusan')
+            ->name('asesmen.kelas.store');
 
-        Route::delete(
-            '/asesmen/kelas/{id}',
-            [AsesmenController::class, 'kelasDestroy']
-        )->name('asesmen.kelas.destroy');
+        Route::delete('/asesmen/kelas/{id}', [AsesmenController::class, 'kelasDestroy'])
+            ->middleware('role:Admin Jurusan')
+            ->name('asesmen.kelas.destroy');
+
+        Route::patch('/asesmen/kelas/{kelas}/wali', [AsesmenController::class, 'assignWali'])
+            ->middleware('role:Kaprodi')
+            ->name('asesmen.kelas.wali');
+
+        
+
 
 
         /*
@@ -395,13 +419,20 @@ Route::middleware([
         Route::post(
             '/asesmen/mahasiswa',
             [AsesmenController::class, 'mahasiswaStore']
-        )->name('asesmen.mahasiswa.store');
+        )
+            ->middleware('role:Admin Jurusan')
+            ->name('asesmen.mahasiswa.store');
 
         Route::delete(
             '/asesmen/mahasiswa/{id}',
             [AsesmenController::class, 'mahasiswaDestroy']
-        )->name('asesmen.mahasiswa.destroy');
+        )
+            ->middleware('role:Admin Jurusan')
+            ->name('asesmen.mahasiswa.destroy');
     });
+
+
+    
 
 
     /*

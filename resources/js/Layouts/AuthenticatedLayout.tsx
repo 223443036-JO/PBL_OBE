@@ -1,6 +1,7 @@
 import React, { PropsWithChildren, ReactNode, useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 
+
 interface Props {
     header?: ReactNode;
 }
@@ -47,11 +48,12 @@ function SubMenuLink({ href, active, children, onClick }: { href: string; active
 }
 
 export default function AuthenticatedLayout({ children }: PropsWithChildren<Props>) {
-    const { user, roles } = usePage().props.auth as any;
+    const { user, roles, has_wali_kelas } = usePage().props.auth as any;
 
     console.log("========== DEBUG ==========");
     console.log("roles :", roles);
     console.log("includes :", roles?.includes("Admin Jurusan"));
+    console.log("has_wali_kelas :", has_wali_kelas);
     console.log("===========================");
 
     const { tenant } = usePage().props as any;
@@ -62,6 +64,8 @@ export default function AuthenticatedLayout({ children }: PropsWithChildren<Prop
     const isAdmin = roles?.includes('Admin Jurusan');
     const isKaprodi = roles?.includes('Kaprodi');
     const isDosen = roles?.includes('Dosen');
+
+    const hasWaliKelas = has_wali_kelas === true;
 
 
     const isMasterDataActive = currentUrl.startsWith('/cpl') ||
@@ -135,6 +139,25 @@ export default function AuthenticatedLayout({ children }: PropsWithChildren<Prop
                                 Curriculum Map
                             </MenuLink>
 
+                            {isDosen && (
+                                <MenuLink
+                                    href={route('asesmen.nilai')}
+                                    active={currentUrl.startsWith('/asesmen/nilai')}
+                                    icon="grade"
+                                >
+                                    Input Nilai
+                                </MenuLink>
+                            )}
+
+                            {hasWaliKelas && (
+                                <MenuLink
+                                    href={route('asesmen.kelas.wali.dosen')}
+                                    active={currentUrl.startsWith('/asesmen/kelas-wali')}
+                                    icon="school"
+                                >
+                                    Kelas Wali
+                                </MenuLink>
+                            )}
                         </>
                     )}
 
