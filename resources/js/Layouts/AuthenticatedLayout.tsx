@@ -109,11 +109,33 @@ export default function AuthenticatedLayout({ children }: PropsWithChildren<Prop
                     </MenuLink>
 
 
-                    {/* Profil Saya - hanya tampil untuk Dosen */}
-                    {!isKaprodi && (
-                        <MenuLink href={route('biodata-saya.show')} active={currentUrl.startsWith('/biodata-saya')} icon="person">
-                            Profil Saya
-                        </MenuLink>
+                    {/* ================= MENU DOSEN ================= */}
+
+                    {isDosen && (
+                        <>
+                            <div className="h-px bg-white/5 my-3 mx-4" />
+
+                            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-aqua-200/50 font-bold mb-3">
+                                Akademik
+                            </p>
+
+                            <MenuLink
+                                href={route('rps.index')}
+                                active={currentUrl.startsWith('/rps')}
+                                icon="description"
+                            >
+                                Kelola RPS
+                            </MenuLink>
+
+                            <MenuLink
+                                href={route('matrix.index')}
+                                active={currentUrl.startsWith('/matrix')}
+                                icon="hub"
+                            >
+                                Curriculum Map
+                            </MenuLink>
+
+                        </>
                     )}
 
                     {/* ================= MENU KAPRODI ================= */}
@@ -131,6 +153,14 @@ export default function AuthenticatedLayout({ children }: PropsWithChildren<Prop
                                 icon="hub"
                             >
                                 Curriculum Matrix
+                            </MenuLink>
+
+                            <MenuLink
+                                href={route('biodata-dosen.index')}
+                                active={currentUrl.startsWith('/biodata-dosen')}
+                                icon="badge"
+                            >
+                                Data Dosen
                             </MenuLink>
 
                             <div>
@@ -265,14 +295,25 @@ export default function AuthenticatedLayout({ children }: PropsWithChildren<Prop
                                 Manajemen
                             </p>
 
+                            {/* Biodata Dosen */}
                             <MenuLink
                                 href={route('biodata-dosen.index')}
                                 active={currentUrl.startsWith('/biodata-dosen')}
                                 icon="badge"
                             >
-                                Kelola Dosen
+                                Biodata Dosen
                             </MenuLink>
 
+                            {/* Akun Dosen */}
+                            <MenuLink
+                                href={route('dosen.index')}
+                                active={currentUrl.startsWith('/dosen')}
+                                icon="manage_accounts"
+                            >
+                                Akun Dosen
+                            </MenuLink>
+
+                            {/* Mahasiswa */}
                             <MenuLink
                                 href={route('asesmen.mahasiswa')}
                                 active={currentUrl.startsWith('/asesmen/mahasiswa')}
@@ -281,6 +322,7 @@ export default function AuthenticatedLayout({ children }: PropsWithChildren<Prop
                                 Kelola Mahasiswa
                             </MenuLink>
 
+                            {/* Kelas */}
                             <MenuLink
                                 href={route('asesmen.kelas')}
                                 active={currentUrl.startsWith('/asesmen/kelas')}
