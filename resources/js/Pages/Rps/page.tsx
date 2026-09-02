@@ -273,7 +273,7 @@ export default function RpsIndex({
             tte_kajur: null,
             komponen_labels: { quiz: 'Quiz', tugas: 'Tugas', project: 'Project', uts: 'UTS', uas: 'UAS' },
             penilaians: [],
-            details: [{ pertemuan_ke: '', kemampuan_akhir: '', indikator: '', bahan_kajian: '', metode_pembelajaran: '', estimasi_waktu: '', pengalaman_belajar: '', penilaian_komponen: '', penilaian_bobot: 0 }],
+            details: [{ pertemuan_ke: '1', kemampuan_akhir: '', indikator: '', bahan_kajian: '', metode_pembelajaran: '', estimasi_waktu: '', pengalaman_belajar: '', penilaian_komponen: '', penilaian_bobot: 0 }],
             _method: 'POST'
         });
         setIsModalOpen(true);
@@ -331,14 +331,14 @@ export default function RpsIndex({
             penilaians: loadedPenilaians,
             details: (item.details && item.details.length > 0) 
                      ? item.details 
-                     : [{ pertemuan_ke: '', kemampuan_akhir: '', indikator: '', bahan_kajian: '', metode_pembelajaran: '', estimasi_waktu: '', pengalaman_belajar: '', penilaian_komponen: '', penilaian_bobot: 0 }],
+                     : [{ pertemuan_ke: '1', kemampuan_akhir: '', indikator: '', bahan_kajian: '', metode_pembelajaran: '', estimasi_waktu: '', pengalaman_belajar: '', penilaian_komponen: '', penilaian_bobot: 0 }],
             _method: 'PUT'
         });
 
         setIsModalOpen(true);
     };
 
-    const addMingguan = () => setData('details', [...data.details, { pertemuan_ke: '', kemampuan_akhir: '', indikator: '', bahan_kajian: '', metode_pembelajaran: '', estimasi_waktu: '', pengalaman_belajar: '', penilaian_komponen: '', penilaian_bobot: 0 }]);
+    const addMingguan = () => setData('details', [...data.details, { pertemuan_ke: (data.details.length + 1).toString(), kemampuan_akhir: '', indikator: '', bahan_kajian: '', metode_pembelajaran: '', estimasi_waktu: '', pengalaman_belajar: '', penilaian_komponen: '', penilaian_bobot: 0 }]);
     const removeMingguan = (index: number) => setData('details', data.details.filter((_, i) => i !== index));
 
     // -- Kelola CPMK inline --
