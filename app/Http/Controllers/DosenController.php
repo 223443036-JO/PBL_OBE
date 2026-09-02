@@ -81,10 +81,11 @@ class DosenController extends Controller
                 $biodata->nama_lengkap,
                 $biodata->gelar_belakang,
             ]))),
-            'email'     => $validated['email'],
-            'nip'       => $biodata->nip,
-            'password'  => Hash::make($validated['password']),
-            'tenant_id' => $tenantId,
+            'email'             => $validated['email'],
+            'nip'               => $biodata->nip,
+            'password'          => Hash::make($validated['password']),
+            'tenant_id'         => $tenantId,
+            'email_verified_at' => now(),
         ]);
 
         $user->assignRole(

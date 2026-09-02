@@ -31,28 +31,53 @@ class DosenBiodataController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(
+            auth()->user()->hasAnyRole(['Master Admin', 'Admin Jurusan']),
+            403
+        );
+
         $request->merge([
             'nip'  => $this->normalizeEmptyToNull($request->nip),
             'nidn' => $this->normalizeEmptyToNull($request->nidn),
         ]);
 
         DosenBiodata::create($this->validatedData($request));
-        return redirect()->back()->with('success', 'Biodata dosen berhasil ditambahkan.');
+
+        return redirect()->back()->with(
+            'success',
+            'Biodata dosen berhasil ditambahkan.'
+        );
     }
 
     public function update(Request $request, DosenBiodata $dosenBiodata)
     {
+        abort_unless(
+            auth()->user()->hasAnyRole(['Master Admin', 'Admin Jurusan']),
+            403
+        );
+
         $request->merge([
             'nip'  => $this->normalizeEmptyToNull($request->nip),
             'nidn' => $this->normalizeEmptyToNull($request->nidn),
         ]);
 
-        $dosenBiodata->update($this->validatedData($request, $dosenBiodata->id));
-        return redirect()->back()->with('success', 'Biodata dosen berhasil diperbarui.');
+        $dosenBiodata->update(
+            $this->validatedData($request, $dosenBiodata->id)
+        );
+
+        return redirect()->back()->with(
+            'success',
+            'Biodata dosen berhasil diperbarui.'
+        );
     }
 
     public function destroy(DosenBiodata $dosenBiodata)
     {
+        abort_unless(
+            auth()->user()->hasAnyRole(['Master Admin', 'Admin Jurusan']),
+            403
+        );
+
         $tenantId = tenant('id');
 
         User::where('dosen_biodata_id', $dosenBiodata->id)
@@ -60,7 +85,11 @@ class DosenBiodataController extends Controller
             ->delete();
 
         $dosenBiodata->delete();
-        return redirect()->back()->with('success', 'Biodata dan akun dosen berhasil dihapus.');
+
+        return redirect()->back()->with(
+            'success',
+            'Biodata dan akun dosen berhasil dihapus.'
+        );
     }
 
     private function normalizeEmptyToNull(?string $value): ?string

@@ -22,6 +22,11 @@ class DosenBiodata extends Model
         'bidang_keahlian', 'alamat',
     ];
 
+    public function kelasWali()
+    {
+        return $this->hasMany(Kelas::class, 'wali_dosen_id');
+    }
+
     public function mataKuliahs()
     {
         return $this->belongsToMany(MataKuliah::class, 'dosen_biodata_mata_kuliah', 'dosen_biodata_id', 'mata_kuliah_id')
